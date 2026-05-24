@@ -3,7 +3,8 @@ spring:
     name: RealTimeCommunicationService
   cloud:
     nacos:
-      server-addr: 127.0.0.1:18375
+      discovery:
+        server-addr: 127.0.0.1:18375
       #server-addr: common-nacos-dev.magestack.cn:8848
   redis:
     database: 0
@@ -26,4 +27,4 @@ server:
   port: 8083
 netty:
   name: NettyService
-  port: 9000
+  port: 9001
