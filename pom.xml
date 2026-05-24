@@ -12,6 +12,7 @@
     <modules>
         <module>AuthenticationService</module>
         <module>GateWay</module>
+        <module>RealTimeCommunicationService</module>
     </modules>
 
     <dependencies>
