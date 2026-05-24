@@ -3,13 +3,22 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.shanyangcode.infinitechat</groupId>
-    <artifactId>AuthenticationService</artifactId>
+    <artifactId>InfiniteChat</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>AuthenticationService</name>
-    <description>AuthenticationService</description>
+    <name>InfiniteChat</name>
+    <description>千言</description>
     <packaging>pom</packaging>
 
     <modules>
         <module>AuthenticationService</module>
+        <module>GateWay</module>
     </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.7.0</version>
+        </dependency>
+    </dependencies>
 </project>

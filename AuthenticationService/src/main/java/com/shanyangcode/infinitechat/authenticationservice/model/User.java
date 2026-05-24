@@ -1,7 +1,12 @@
 package com.shanyangcode.infinitechat.authenticationservice.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+import lombok.experimental.Accessors;
+
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -9,7 +14,9 @@ import java.util.Date;
  * @TableName user
  */
 @TableName(value ="user")
-public class User {
+@Data
+@Accessors(chain = true)
+public class User implements Serializable {
     /**
      * id
      */
@@ -66,159 +73,8 @@ public class User {
      */
     private Date updatedAt;
 
-    /**
-     * id
-     */
-    public Long getUserId() {
-        return userId;
-    }
-
-    /**
-     * id
-     */
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    /**
-     * 用户昵称
-     */
-    public String getUserName() {
-        return userName;
-    }
-
-    /**
-     * 用户昵称
-     */
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    /**
-     * 密码
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * 密码
-     */
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    /**
-     * 邮箱
-     */
-    public String getEmail() {
-        return email;
-    }
-
-    /**
-     * 邮箱
-     */
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    /**
-     * 手机号
-     */
-    public String getPhone() {
-        return phone;
-    }
-
-    /**
-     * 手机号
-     */
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    /**
-     * 用户头像
-     */
-    public String getAvatar() {
-        return avatar;
-    }
-
-    /**
-     * 用户头像
-     */
-    public void setAvatar(String avatar) {
-        this.avatar = avatar;
-    }
-
-    /**
-     * 个性签名
-     */
-    public String getSignature() {
-        return signature;
-    }
-
-    /**
-     * 个性签名
-     */
-    public void setSignature(String signature) {
-        this.signature = signature;
-    }
-
-    /**
-     * 性别 0 男 1 女 2 保密
-     */
-    public Integer getGender() {
-        return gender;
-    }
-
-    /**
-     * 性别 0 男 1 女 2 保密
-     */
-    public void setGender(Integer gender) {
-        this.gender = gender;
-    }
-
-    /**
-     * 用户状态。1正常，2封禁，3注销
-     */
-    public Integer getStatus() {
-        return status;
-    }
-
-    /**
-     * 用户状态。1正常，2封禁，3注销
-     */
-    public void setStatus(Integer status) {
-        this.status = status;
-    }
-
-    /**
-     * 创建时间
-     */
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    /**
-     * 创建时间
-     */
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    /**
-     * 更新时间
-     */
-    public Date getUpdatedAt() {
-        return updatedAt;
-    }
-
-    /**
-     * 更新时间
-     */
-    public void setUpdatedAt(Date updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    @TableField(exist = false)
+    private static final long serialVersionUID = 1L;
 
     @Override
     public boolean equals(Object that) {
@@ -280,6 +136,7 @@ public class User {
         sb.append(", status=").append(status);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);
+        sb.append(", serialVersionUID=").append(serialVersionUID);
         sb.append("]");
         return sb.toString();
     }
