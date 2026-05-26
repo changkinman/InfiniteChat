@@ -58,3 +58,15 @@ spring:
           filters:
             - AddRequestHeader=X-Request-Source, InfiniteChat-GateWay
             - AddResponseHeader=X-Response-Source, InfiniteChat-GateWay
+
+        #实时通信服务
+        - id: NettyService
+          uri: lb://RealTimeCommunicationService
+          predicates:
+            - Path=/api/v1/message/**
+          #Netty长链接服务
+        - id: NettyService
+          #uri:ws://127.0.0.1:9000
+          uri: lb:ws://NettyService
+          predicates:
+            - Path=/api/v1/netty

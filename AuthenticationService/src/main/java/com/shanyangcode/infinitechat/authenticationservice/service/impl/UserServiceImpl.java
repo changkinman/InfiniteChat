@@ -59,7 +59,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         String encryptedPassword = DigestUtils.md5DigestAsHex(password.getBytes());
 
         User user = new User()
-                .setUserId(snowflake.nextId())
+                .setUserId(String.valueOf(snowflake.nextId()))
                 .setPassword(encryptedPassword)
                 .setPhone(phone)
                 .setUserName(NickNameGeneratorUtil.generateNickName());
