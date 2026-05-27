@@ -103,7 +103,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     private void sendRealTimeMessage(SendMsgRequest sendMsgRequest, AppMessage appMessage, Date createdAt) {
         String json = JSON.toJSONString(appMessage);
-        String nettyServerIP = redisTemplate.opsForValue().get(UserConstants.USER_SESSION + sendMsgRequest.getSendUserId().toString());
+        String nettyServerIP = redisTemplate.opsForValue().get(UserConstants.USER_SESSION + sendMsgRequest.getReceiveUserId().toString());
         RequestBody requestBody = RequestBody.create(
                 MediaType.parse(ConfigEnum.MEDIA_TYPE.getValue()),
                 json

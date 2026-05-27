@@ -13,6 +13,7 @@
         <module>AuthenticationService</module>
         <module>GateWay</module>
         <module>RealTimeCommunicationService</module>
+        <module>MessageingService</module>
     </modules>
 
     <dependencies>
