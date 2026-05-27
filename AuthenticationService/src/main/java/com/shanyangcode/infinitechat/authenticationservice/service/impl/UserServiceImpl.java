@@ -18,7 +18,9 @@ import com.shanyangcode.infinitechat.authenticationservice.data.user.updateAvata
 import com.shanyangcode.infinitechat.authenticationservice.exception.CodeException;
 import com.shanyangcode.infinitechat.authenticationservice.exception.DatabaseException;
 import com.shanyangcode.infinitechat.authenticationservice.exception.UserException;
+import com.shanyangcode.infinitechat.authenticationservice.mapper.UserBalanceMapper;
 import com.shanyangcode.infinitechat.authenticationservice.model.User;
+import com.shanyangcode.infinitechat.authenticationservice.model.UserBalance;
 import com.shanyangcode.infinitechat.authenticationservice.service.UserService;
 import com.shanyangcode.infinitechat.authenticationservice.mapper.UserMapper;
 import com.shanyangcode.infinitechat.authenticationservice.utils.JwtUtil;
@@ -28,6 +30,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
 * @author Lenovo
@@ -39,6 +44,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     implements UserService{
     @Autowired
     private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private UserBalanceMapper userBalanceMapper;
 
     @Override
     public RegisterResponse register(RegisterRequest request) {
@@ -59,7 +67,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         String encryptedPassword = DigestUtils.md5DigestAsHex(password.getBytes());
 
         User user = new User()
-                .setUserId(String.valueOf(snowflake.nextId()))
+                .setUserId(snowflake.nextId())
                 .setPassword(encryptedPassword)
                 .setPhone(phone)
                 .setUserName(NickNameGeneratorUtil.generateNickName());
@@ -67,6 +75,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         boolean isUserSave = this.save(user);
         if (!isUserSave){
             throw new DatabaseException("数据库异常，保存用户信息失败");
+        }
+
+        UserBalance userBalance = new UserBalance()
+                .setUserId(user.getUserId())
+                .setBalance(BigDecimal.valueOf(1000))
+                .setUpdatedAt(LocalDateTime.now());
+
+        int insert = userBalanceMapper.insert(userBalance);
+        if(insert <= 0){
+            throw new DatabaseException("数据库异常，保存用户账户余额失败");
         }
 
         return new RegisterResponse().setPhone(phone);
@@ -94,6 +112,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
         LoginResponse response = new LoginResponse();
         BeanUtils.copyProperties(user, response);
+        response.setUserId(user.getUserId().toString());
         String token = JwtUtil.generate(String.valueOf(user.getUserId()));
         response.setToken(token);
         return response;
