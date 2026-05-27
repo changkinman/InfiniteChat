@@ -46,7 +46,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private static final int MAX_POOL_SIZE = 10;
     private static final long KEEP_ALIVE_TIME = 60L; // 60秒
     private static final int QUEUE_CAPACITY = 100;
-    private static final String DEFAULT_SESSION_AVATAR = "http://127.0.0.1/img/avatar/IM_GROUP.jpg";
+    private static final String DEFAULT_SESSION_AVATAR = "http://47.115.130.44/img/avatar/IM_GROUP.jpg";
     private static final String TIME_ZONE_SHANGHAI = "Asia/Shanghai";
     private static final int STATUS_ACTIVE = 1;
     private final UserService userService;
