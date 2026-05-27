@@ -4,13 +4,18 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.shanyangcode.infinitechat.messageingservice.util.RedPacketExpireListener;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -19,10 +24,14 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @SpringBootConfiguration
 public class RedisConfig {
 
+    @Autowired
+    @Lazy // 退出注入，避免循环依赖
+    private RedPacketExpireListener redPacketExpireListener;
+
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         // 创建 Lettuce 连接工厂，连接到本地 Redis
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration("127.0.0.1", 59000);
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration("118.25.77.201", 59000);
         config.setPassword(RedisPassword.of("e65K4t8w2"));
         return new LettuceConnectionFactory(config);
     }
@@ -41,6 +50,17 @@ public class RedisConfig {
         redisTemplate.setHashValueSerializer(redisSerializer());
         redisTemplate.afterPropertiesSet();
         return redisTemplate;
+    }
+
+    @Bean
+    public RedisMessageListenerContainer redisContainer(){
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(redisConnectionFactory());
+
+        PatternTopic topic = new PatternTopic("__keyevent@0__:expired");
+        container.addMessageListener(redPacketExpireListener, topic);
+
+        return container;
     }
 
     public RedisSerializer<Object> redisSerializer() {

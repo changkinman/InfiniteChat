@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 public enum ConfigEnum {
 
+
     TOKEN_SECRET_KEY("tokenSecretKey","goat"),
     PASSWORD_SALT("passwordSalt","goat"),
     WX_STATE("wxState","goat"),
