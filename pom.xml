@@ -14,13 +14,14 @@
         <module>GateWay</module>
         <module>RealTimeCommunicationService</module>
         <module>MessageingService</module>
+        <module>ContanctService</module>
     </modules>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
-            <version>1.7.0</version>
-        </dependency>
-    </dependencies>
+<!--    <dependencies>-->
+<!--        <dependency>-->
+<!--            <groupId>org.springdoc</groupId>-->
+<!--            <artifactId>springdoc-openapi-ui</artifactId>-->
+<!--            <version>1.7.0</version>-->
+<!--        </dependency>-->
+<!--    </dependencies>-->
 </project>
