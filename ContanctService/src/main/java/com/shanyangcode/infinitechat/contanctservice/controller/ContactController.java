@@ -1,7 +1,7 @@
 package com.shanyangcode.infinitechat.contanctservice.controller;
 
-import com.shangyangcode.infinitechat.contactservice.common.Result;
-import com.shangyangcode.infinitechat.contactservice.data.User.UserResponse;
+import com.shanyangcode.infinitechat.contanctservice.common.Result;
+import com.shanyangcode.infinitechat.contanctservice.data.User.UserResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
