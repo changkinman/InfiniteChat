@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: OfflineDataStoreService
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:18375
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:49152/infiniteChat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: root
+    password: 123456
+    hikari:
+      # 设置最大连接池大小
+      maximum-pool-size: 10
+      # 设置最小空闲连接数
+      minimum-idle: 5
+      # 设置连接池初始化失败时的超时时间
+      initialization-fail-timeout: 10000
+      # 设置连接池的最大空闲时间
+      idle-timeout: 30000
+      # 设置连接池中连接的最大生命周期
+      max-lifetime: 60000
+      # 设置连接池的连接超时时间
+      connection-timeout: 30000
+      # 设置连接池的最大等待时间
+      validation-timeout: 3000
+      # 配置连接池验证SQL（根据数据库选择合适的SQL）
+      connection-test-query: SELECT 1
+      # 设置连接池的池化管理名称
+      pool-name: HikariCP
+
+  kafka:
+    bootstrap-servers:
+      - 127.0.0.1:19092
+
+    consumer:
+      group-id: thousnads_word_message_all
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8085
+
+# 打印 sql
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+
