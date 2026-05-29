@@ -1,4 +1,4 @@
-package com.shanyangcode.infinitechat.offlinedatastoreservice.contants.config;
+package com.shanyangcode.infinitechat.offlinedatastoreservice.constants.config;
 
 import org.apache.commons.lang3.ObjectUtils;
 

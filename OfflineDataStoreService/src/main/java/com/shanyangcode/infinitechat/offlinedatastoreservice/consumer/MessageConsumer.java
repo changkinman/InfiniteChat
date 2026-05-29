@@ -1,7 +1,7 @@
 package com.shanyangcode.infinitechat.offlinedatastoreservice.consumer;
 
-import com.shangyangcode.infinitechat.offlinedatastoreservice.constants.kafka.KafkaConstants;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.service.MessageService;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.constants.kafka.KafkaConstants;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
