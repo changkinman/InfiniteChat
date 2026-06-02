@@ -1,7 +1,7 @@
 package com.shanyangcode.infinitechat.offlinedatastoreservice.mapper;
 
 import com.github.yulichang.base.MPJBaseMapper;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.model.RedPacket;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.model.RedPacket;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
