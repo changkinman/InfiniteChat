@@ -1,7 +1,7 @@
 package com.shanyangcode.infinitechat.offlinedatastoreservice.mapper;
 
 import com.github.yulichang.base.MPJBaseMapper;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.model.User;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.model.User;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
