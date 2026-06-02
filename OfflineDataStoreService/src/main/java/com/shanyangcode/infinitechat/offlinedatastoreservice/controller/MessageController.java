@@ -1,9 +1,9 @@
 package com.shanyangcode.infinitechat.offlinedatastoreservice.controller;
 
-import com.shangyangcode.infinitechat.offlinedatastoreservice.common.Result;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.data.offlineMessage.OfflineMessageRequest;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.data.offlineMessage.OfflineMessageResponse;
-import com.shangyangcode.infinitechat.offlinedatastoreservice.service.MessageService;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.common.Result;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.data.offlineMessage.OfflineMessageRequest;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.data.offlineMessage.OfflineMessageResponse;
+import com.shanyangcode.infinitechat.offlinedatastoreservice.service.MessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
