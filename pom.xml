@@ -16,6 +16,7 @@
         <module>MessageingService</module>
         <module>ContanctService</module>
         <module>OfflineDataStoreService</module>
+        <module>MomentService</module>
     </modules>
 
 <!--    <dependencies>-->
