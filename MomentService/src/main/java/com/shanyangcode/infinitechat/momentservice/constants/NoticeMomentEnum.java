@@ -1,4 +1,4 @@
-package com.shanyangcode.infinitechat.momentservice.contants;
+package com.shanyangcode.infinitechat.momentservice.constants;
 
 /**
  * 朋友圈通知类型枚举

@@ -1,4 +1,4 @@
-package com.shanyangcode.infinitechat.momentservice.contants;
+package com.shanyangcode.infinitechat.momentservice.constants;
 
 /**
  * 朋友圈服务使用的常量

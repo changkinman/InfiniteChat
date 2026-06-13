@@ -1,4 +1,4 @@
-package com.shanyangcode.infinitechat.momentservice.contants;
+package com.shanyangcode.infinitechat.momentservice.constants;
 
 import lombok.Getter;
 

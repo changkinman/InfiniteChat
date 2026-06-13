@@ -1,4 +1,4 @@
-package com.shanyangcode.infinitechat.momentservice.contants;
+package com.shanyangcode.infinitechat.momentservice.constants;
 
 public enum ConfigEnum {
     TOKEN_SECRET_KEY("goat"),
