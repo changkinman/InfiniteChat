@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 /**
  * 用户余额表
  */
-@TableName(value ="user")
 @Data
+@TableName("user_balance")
 @Accessors(chain = true)
 public class UserBalance {
 
@@ -34,5 +34,4 @@ public class UserBalance {
      */
     @TableField("updated_at")
     private LocalDateTime updatedAt;
-
 }

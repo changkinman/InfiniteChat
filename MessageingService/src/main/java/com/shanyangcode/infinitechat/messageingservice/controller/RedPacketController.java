@@ -1,9 +1,9 @@
 package com.shanyangcode.infinitechat.messageingservice.controller;
 
 import com.shanyangcode.infinitechat.messageingservice.common.Result;
-import com.shanyangcode.infinitechat.messageingservice.data.getRedPacket.RedPacketResponse;
 import com.shanyangcode.infinitechat.messageingservice.data.receiveRedPackage.ReceiveRedPacketRequest;
 import com.shanyangcode.infinitechat.messageingservice.data.receiveRedPackage.ReceiveRedPacketResponse;
+import com.shanyangcode.infinitechat.messageingservice.data.getRedPacket.RedPacketResponse;
 import com.shanyangcode.infinitechat.messageingservice.data.senRedPackage.SendRedPacketRequest;
 import com.shanyangcode.infinitechat.messageingservice.data.senRedPackage.SendRedPacketResponse;
 import com.shanyangcode.infinitechat.messageingservice.service.GetRedPacketService;

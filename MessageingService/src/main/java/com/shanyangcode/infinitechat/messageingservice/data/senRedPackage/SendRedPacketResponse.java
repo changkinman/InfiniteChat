@@ -6,6 +6,8 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class SendRedPacketResponse {
+    private Long redPacketId;
+
     private String sessionId;
 
     private Integer sessionType;

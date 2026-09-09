@@ -9,6 +9,7 @@ import com.shanyangcode.infinitechat.messageingservice.constants.ConfigEnum;
 import com.shanyangcode.infinitechat.messageingservice.constants.SessionType;
 import com.shanyangcode.infinitechat.messageingservice.constants.UserConstants;
 import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.AppMessage;
+import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.KafkaMsgVO;
 import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.SendMsgRequest;
 import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.SendMsgResponse;
 import com.shanyangcode.infinitechat.messageingservice.mapper.FriendMapper;
@@ -21,12 +22,13 @@ import com.shanyangcode.infinitechat.messageingservice.service.MessageService;
 import com.shanyangcode.infinitechat.messageingservice.service.SessionService;
 import com.shanyangcode.infinitechat.messageingservice.service.UserService;
 import com.shanyangcode.infinitechat.messageingservice.service.UserSessionService;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import org.springframework.data.redis.core.RedisTemplate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -46,7 +48,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private static final int MAX_POOL_SIZE = 10;
     private static final long KEEP_ALIVE_TIME = 60L; // 60秒
     private static final int QUEUE_CAPACITY = 100;
-    private static final String DEFAULT_SESSION_AVATAR = "http://127.0.0.1/img/avatar/IM_GROUP.jpg";
+    private static final String DEFAULT_SESSION_AVATAR = "http://47.115.130.44/img/avatar/IM_GROUP.jpg";
     private static final String TIME_ZONE_SHANGHAI = "Asia/Shanghai";
     private static final int STATUS_ACTIVE = 1;
     private final UserService userService;
@@ -55,6 +57,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private final SessionService sessionService;
     private final DiscoveryClient discoveryClient;
     private final RedisTemplate<String, String> redisTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final OkHttpClient httpClient = new OkHttpClient();
 
     private final ThreadPoolExecutor groupMessageExecutor;
@@ -64,13 +67,15 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                               FriendMapper friendMapper,
                               UserSessionService userSessionService,
                               SessionService sessionService,
-                              DiscoveryClient discoveryClient, RedisTemplate<String, String> redisTemplate) {
+                              DiscoveryClient discoveryClient, RedisTemplate<String, String> redisTemplate,
+                              KafkaTemplate<String, String> kafkaTemplate) {
         this.userService = userService;
         this.friendMapper = friendMapper;
         this.userSessionService = userSessionService;
         this.sessionService = sessionService;
         this.discoveryClient = discoveryClient;
         this.redisTemplate = redisTemplate;
+        this.kafkaTemplate = kafkaTemplate;
         this.groupMessageExecutor = new ThreadPoolExecutor(
                 CORE_POOL_SIZE,
                 MAX_POOL_SIZE,
@@ -94,11 +99,25 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         Date createdAt = new Date();
         appMessage.setMessageId(messageId);
         appMessage.setCreatedAt(formatDate(createdAt));
-        // TODO: 发送到kafka
+        sendKafkaMessage(request, request.getSendUserId(), messageId, createdAt);
+
         // 4.通过redis查询接收者的netty服务在哪
         sendRealTimeMessage(request, appMessage, createdAt);
 
         return buildResponseMsgVo(appMessage);
+    }
+
+    private void sendKafkaMessage(SendMsgRequest sendMsgRequest, Long sendUserId, Long messageId, Date createdAt) {
+        KafkaMsgVO kafkaMsgVO = new KafkaMsgVO();
+        BeanUtils.copyProperties(sendMsgRequest, kafkaMsgVO);
+        kafkaMsgVO.setMessageId(messageId);
+        kafkaMsgVO.setCreateAt(createdAt);
+
+        String kafkaJSON = JSON.toJSONString(kafkaMsgVO);
+
+        kafkaTemplate.send(ConfigEnum.KAFKA_TOPICS.getValue(), sendMsgRequest.getSessionId().toString(), kafkaJSON)
+                .addCallback(result -> log.info("Kafka消息发送成功: {}", result.getRecordMetadata()),
+                        ex -> log.error("Kafka消息发送失败: {}", ex.getMessage()));
     }
 
     private void sendRealTimeMessage(SendMsgRequest sendMsgRequest, AppMessage appMessage, Date createdAt) {

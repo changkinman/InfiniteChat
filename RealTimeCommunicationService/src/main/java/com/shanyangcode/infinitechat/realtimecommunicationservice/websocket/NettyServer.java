@@ -20,11 +20,9 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.NettyRuntime;
 import io.netty.util.concurrent.Future;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -34,7 +32,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 @Configuration
-@RequiredArgsConstructor
 @Slf4j
 public class NettyServer {
     @Value("${netty.port}")
@@ -43,14 +40,14 @@ public class NettyServer {
     @Value("${netty.name}")
     private String serverName;
 
-    @Autowired
+    @Value("${netty.register-nacos:true}")
+    private boolean registerNacos;
+
+    @Autowired(required = false)
     private NacosServiceManager nacosServiceManager;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
-
-    // discoveryClient 服务发现客户端
-    private final DiscoveryClient discoveryClient;
 
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
 
@@ -59,8 +56,13 @@ public class NettyServer {
     @PostConstruct
     public void start() throws InterruptedException, UnknownHostException, NacosException {
         run();
-        NamingService namingService = nacosServiceManager.getNamingService();
-        namingService.registerInstance(this.serverName, InetAddress.getLocalHost().getHostAddress(), this.port);
+        if (registerNacos) {
+            if (nacosServiceManager == null) {
+                throw new IllegalStateException("Nacos registration is enabled but NacosServiceManager is unavailable");
+            }
+            NamingService namingService = nacosServiceManager.getNamingService();
+            namingService.registerInstance(this.serverName, InetAddress.getLocalHost().getHostAddress(), this.port);
+        }
         log.info("netty server start success");
     }
 

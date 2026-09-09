@@ -7,7 +7,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:18375
+        server-addr: 118.25.77.201:18375
     gateway:
       httpclient:
         connect-timeout: 60000 # 连接超时时间，单位毫秒
@@ -34,9 +34,8 @@ spring:
 #        - id: query_router
 #          uri: https://www.baidu.com
 #          predicates:
-#            - After=2026-01-20T17:42:47.789-07:00[America/Denver]
 #            - Query=green
-
+#            - After=2026-01-20T17:42:47.789-07:00[America/Denver]
 #
 #        - id: cookie_route
 #          uri: https://qq.com
@@ -58,15 +57,29 @@ spring:
           filters:
             - AddRequestHeader=X-Request-Source, InfiniteChat-GateWay
             - AddResponseHeader=X-Response-Source, InfiniteChat-GateWay
-
-        #实时通信服务
-        - id: NettyService
+        # 实时通信服务
+        - id: RealTimeCommunicationService
           uri: lb://RealTimeCommunicationService
           predicates:
             - Path=/api/v1/message/**
-          #Netty长链接服务
+        # Netty 长链接服务
         - id: NettyService
-          #uri:ws://127.0.0.1:9000
+          # uri: ws://127.0.0.1:9000
           uri: lb:ws://NettyService
           predicates:
             - Path=/api/v1/netty
+        # 离线存储模块
+        - id: OfflineDataStore
+          uri: lb://OfflineDataStore
+          predicates:
+            - Path=/api/v1/offline/**
+        # 消息模块
+        - id: MessagingService
+          uri: lb://MessagingService
+          predicates:
+            - Path=/api/v1/chat/**
+        # 朋友圈模块
+        - id: MomentService
+          uri: lb://MomentService
+          predicates:
+            - Path=/api/v1/moment/**

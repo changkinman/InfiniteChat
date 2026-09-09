@@ -16,7 +16,7 @@ class SourceHandler implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-
+//        X-Request-Source, InfiniteChat-GateWay
         String header = request.getHeader("X-Request-Source");
         if (!"InfiniteChat-GateWay".equals(header)){
             refuseResult(response);
@@ -30,7 +30,7 @@ class SourceHandler implements HandlerInterceptor {
     public void refuseResult(HttpServletResponse httpServletResponse) throws Exception{
         httpServletResponse.setContentType("text/html;charset=UTF-8");
         httpServletResponse.setCharacterEncoding("UTF-8");
-        httpServletResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        httpServletResponse.setStatus(HttpStatus.FORBIDDEN.value());
         Result<Object> result = new Result<>().setCode(40301).setMsg("非法请求来源");
         httpServletResponse.getWriter().print(JSON.toJSONString(result));
         httpServletResponse.getWriter().flush();

@@ -3,12 +3,12 @@ spring:
     name: MessagingService
   cloud:
     nacos:
-      server-addr: 127.0.0.1:18375
+      server-addr: 118.25.77.201:18375
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:49152/infiniteChat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    url: jdbc:mysql://118.25.77.201:49152/infiniteChat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
     username: root
-    password: 123456
+    password: gK3T9n%q2M@j7Z4
     hikari:
       # 设置最大连接池大小
       maximum-pool-size: 10
@@ -30,7 +30,7 @@ spring:
       pool-name: HikariCP
   redis:
     database: 0
-    host: 127.0.0.1
+    host: 118.25.77.201
     port: 59000
     password: e65K4t8w2
     # 配置 redis 连接池
@@ -44,8 +44,20 @@ spring:
         max-active: 8
         #连接池最大阻塞等待时间 负值表示没有限制
         max-wait: -1ms
-    jackson:
-      date-format: yyyy-MM-dd HH:mm:ss
-      time-zone: GMT+8
+
+  kafka:
+    bootstrap-servers:
+      - 47.115.130.44:19092
+    consumer:
+      group-id: thousnads_word_message_all
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
   server:
     port: 8081

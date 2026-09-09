@@ -12,6 +12,7 @@ import com.shanyangcode.infinitechat.authenticationservice.data.user.updateAvata
 import com.shanyangcode.infinitechat.authenticationservice.service.UserService;
 import com.shanyangcode.infinitechat.authenticationservice.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -41,8 +42,12 @@ public class UserController {
     @PostMapping("/loginCode")
     public Result<LoginCodeResponse> register(@Valid @RequestBody LoginCodeRequest request){
         LoginCodeResponse response = userService.loginCode(request);
+
         return Result.OK(response);
     }
+
+    // 获取用户信息接口
+    // @GetMapping("/info")
 
     @PatchMapping("/avatar")
     public Result<UpdateAvatarResponse> updateAvatar(@Valid @RequestBody UpdateAvatarRequest request,

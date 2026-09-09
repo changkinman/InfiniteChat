@@ -2,7 +2,9 @@ package com.shanyangcode.infinitechat.realtimecommunicationservice.data.ReceiveM
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.hibernate.validator.constraints.Length;
 
+import javax.validation.constraints.NotEmpty;
 import java.util.List;
 
 @Data

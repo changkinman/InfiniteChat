@@ -1,6 +1,7 @@
 package com.shanyangcode.infinitechat.momentservice.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.shanyangcode.infinitechat.momentservice.common.Result;
 import com.shanyangcode.infinitechat.momentservice.data.createLike.CreateLikeRequest;
 import com.shanyangcode.infinitechat.momentservice.data.createLike.CreateLikeResponse;
 import com.shanyangcode.infinitechat.momentservice.data.deleteLike.DeleteLikeRequest;

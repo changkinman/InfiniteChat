@@ -10,7 +10,7 @@ import com.shanyangcode.infinitechat.realtimecommunicationservice.model.MessageD
 import com.shanyangcode.infinitechat.realtimecommunicationservice.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -22,8 +22,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.net.InetAddress;
 
+
 @Slf4j
-@ChannelHandler.Sharable
+@Sharable
 @AllArgsConstructor
 public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
@@ -42,10 +43,13 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
         switch (messageType){
             case ACK:
                 processACK(messageDTO);
+                break;
             case LOG_OUT:
                 processLogOut(ctx, messageDTO);
+                break;
             case HEART_BEAT:
                 processHeartBeat(ctx, messageDTO);
+                break;
             default:
                 processIllegal(messageDTO);
         }

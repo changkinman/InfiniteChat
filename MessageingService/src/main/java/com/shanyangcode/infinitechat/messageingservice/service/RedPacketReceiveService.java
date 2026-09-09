@@ -4,15 +4,15 @@ import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.shanyangcode.infinitechat.messageingservice.common.ServiceException;
 import com.shanyangcode.infinitechat.messageingservice.constants.BalanceLogType;
-import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketConstants;
 import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketStatus;
 import com.shanyangcode.infinitechat.messageingservice.data.receiveRedPackage.ReceiveRedPacketResponse;
 import com.shanyangcode.infinitechat.messageingservice.mapper.BalanceLogMapper;
+import com.shanyangcode.infinitechat.messageingservice.mapper.UserBalanceMapper;
+import com.shanyangcode.infinitechat.messageingservice.common.ServiceException;
+import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketConstants;
 import com.shanyangcode.infinitechat.messageingservice.mapper.RedPacketMapper;
 import com.shanyangcode.infinitechat.messageingservice.mapper.RedPacketReceiveMapper;
-import com.shanyangcode.infinitechat.messageingservice.mapper.UserBalanceMapper;
 import com.shanyangcode.infinitechat.messageingservice.model.BalanceLog;
 import com.shanyangcode.infinitechat.messageingservice.model.RedPacket;
 import com.shanyangcode.infinitechat.messageingservice.model.RedPacketReceive;
@@ -45,7 +45,11 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
 
     // Redis Lua脚本用于原子性地检查并递减红包数量
     private static final String RED_PACKET_LUA_SCRIPT = RedPacketConstants.RED_PACKET_LUA_SCRIPT.getValue();
+    private static final String RED_PACKET_RELEASE_LUA_SCRIPT = RedPacketConstants.RED_PACKET_RELEASE_LUA_SCRIPT.getValue();
     private static final String RED_PACKET_KEY_PREFIX = RedPacketConstants.RED_PACKET_KEY_PREFIX.getValue();
+    private static final String RED_PACKET_CLAIMED_KEY_PREFIX = RedPacketConstants.RED_PACKET_CLAIMED_KEY_PREFIX.getValue();
+    private static final Integer RESERVED = 1;
+    private static final Integer ALREADY_RECEIVED = 3;
     private static final Integer CLAIMED = RedPacketStatus.CLAIMED.getStatus();
 
     /**
@@ -84,38 +88,41 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
             return new ReceiveRedPacketResponse(amount, 0);
         }
 
-        // 尝试抢红包
-        Integer result = grabRedPacket(redPacketId);
-        if (result.equals(CLAIMED)) {
+        Integer result = reserveRedPacket(redPacketId, userId);
+        if (!RESERVED.equals(result)) {
+            if (ALREADY_RECEIVED.equals(result)) {
+                BigDecimal receivedAmount = verifyUserHasNotReceived(redPacketId, userId);
+                if (receivedAmount != null) {
+                    return new ReceiveRedPacketResponse(receivedAmount, 0);
+                }
+            }
             return new ReceiveRedPacketResponse(null, CLAIMED);
         }
 
-        // 获取红包信息
-        RedPacket redPacket = getRedPacketById(redPacketId);
+        try {
+            // 领取金额和红包余额必须基于同一条加锁记录计算，避免并发读写覆盖。
+            RedPacket redPacket = getBaseMapper().selectByIdForUpdate(redPacketId);
+            if (redPacket == null) {
+                throw new ServiceException("红包不存在");
+            }
 
-        // 检查红包状态
-        Integer status = validateRedPacketStatus(redPacket);
-        if (status != 0) {
-            return new ReceiveRedPacketResponse(null, status);
+            Integer status = validateRedPacketStatus(redPacket);
+            if (status != 0) {
+                releaseReservation(redPacketId, userId);
+                return new ReceiveRedPacketResponse(null, status);
+            }
+
+            BigDecimal receivedAmount = computeReceivedAmount(redPacket);
+            updateRedPacketInfo(redPacket, receivedAmount);
+            logRedPacketReceive(redPacketId, userId, receivedAmount);
+            adjustUserBalance(userId, receivedAmount);
+            logBalanceChange(userId, receivedAmount, redPacketId);
+            return new ReceiveRedPacketResponse(receivedAmount, status);
+        } catch (RuntimeException exception) {
+            // Redis 预占成功而数据库事务未完成时归还预占，防止库存被无故消耗。
+            releaseReservation(redPacketId, userId);
+            throw exception;
         }
-
-        // 计算领取金额
-        BigDecimal receivedAmount = computeReceivedAmount(redPacket);
-
-        // 更新红包信息
-        updateRedPacketInfo(redPacket, receivedAmount);
-
-        // 插入领取记录
-        LocalDateTime receiveTime = logRedPacketReceive(redPacketId, userId, receivedAmount);
-
-        // 更新用户余额
-        adjustUserBalance(userId, receivedAmount);
-
-        // 记录余额变动日志
-        logBalanceChange(userId, receivedAmount, redPacketId);
-
-        // 构建响应对象
-        return new ReceiveRedPacketResponse(receivedAmount, status);
     }
 
     /**
@@ -124,19 +131,34 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
      * @param redPacketId 红包ID
      * @return Long 抢红包结果
      */
-    private Integer grabRedPacket(Long redPacketId) {
+    private Integer reserveRedPacket(Long redPacketId, Long userId) {
         String redPacketCountKey = RED_PACKET_KEY_PREFIX + redPacketId;
+        String redPacketClaimedKey = RED_PACKET_CLAIMED_KEY_PREFIX + redPacketId;
         DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
         redisScript.setScriptText(RED_PACKET_LUA_SCRIPT);
         redisScript.setResultType(Long.class);
         try {
-            Long result = redisTemplate.execute(redisScript, Collections.singletonList(redPacketCountKey));
+            Long result = redisTemplate.execute(redisScript,
+                    java.util.Arrays.asList(redPacketCountKey, redPacketClaimedKey), String.valueOf(userId));
             if (result == null) {
                 throw new IllegalStateException("Redis 脚本执行返回 null");
             }
             return result.intValue();
         } catch (Exception e) {
             throw new RuntimeException("执行 Redis Lua 脚本时出错", e);
+        }
+    }
+
+    private void releaseReservation(Long redPacketId, Long userId) {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText(RED_PACKET_RELEASE_LUA_SCRIPT);
+        script.setResultType(Long.class);
+        try {
+            redisTemplate.execute(script,
+                    java.util.Arrays.asList(RED_PACKET_KEY_PREFIX + redPacketId,
+                            RED_PACKET_CLAIMED_KEY_PREFIX + redPacketId), String.valueOf(userId));
+        } catch (Exception exception) {
+            throw new RuntimeException("归还红包库存预占失败", exception);
         }
     }
 

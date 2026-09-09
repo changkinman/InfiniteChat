@@ -8,21 +8,23 @@ import java.util.stream.Collectors;
 
 public enum ConfigEnum {
 
-
-    TOKEN_SECRET_KEY("tokenSecretKey","goat"),
-    PASSWORD_SALT("passwordSalt","goat"),
-    WX_STATE("wxState","goat"),
-    WORKED_ID("workedId","1"),
-    DATACENTER_ID("DATACENTER_ID","1"),
-    IMAGE_URI("imageUri","http://127.0.0.1/img/avatar/"),
-    MEDIA_TYPE("mediaType","application/json; charset=utf-8"),
-    MSG_URL("msgUrl","/api/v1/message/user/"), //RealTimeCommunicationService服务推送接口
-    KAFKA_TOPICS("kafkaTopics","thousands_word_message"),
-    HTTP_CONFIG("httpConfig","application/json; charset=utf-8"),
+    SMS_ACCESS_KEY_ID("smsAccessKeyId", environment("MESSAGING_ALIYUN_SMS_ACCESS_KEY_ID")),
+    SMS_ACCESS_KEY_SECRET("smsAccessKeySecret", environment("MESSAGING_ALIYUN_SMS_ACCESS_KEY_SECRET")),
+    SMS_SIG_NAME("smsSigName", "Zzw"),
+    SMS_TEMPLATE_CODE("smsTemplateCode", "SMS_468395208"),
+    TOKEN_SECRET_KEY("tokenSecretKey", environment("MESSAGING_TOKEN_SECRET_KEY")),
+    PASSWORD_SALT("passwordSalt", environment("MESSAGING_PASSWORD_SALT")),
+    WX_STATE("wxState", "goat"),
+    WORKED_ID("workedId", "1"),
+    DATACENTER_ID("DATACENTER_ID", "1"),
+    IMAGE_URI("imageUri", "http://47.113.96.105/img/avatar/"),
+    MEDIA_TYPE("mediaType", "application/json; charset=utf-8"),
+    MSG_URL("msgUrl", "/api/v1/message/user/"),
+    KAFKA_TOPICS("kafkaTopics", "thousands_word_message"),
+    HTTP_CONFIG("httpConfig", "application/json; charset=utf-8"),
     IMAGE_PATH("imagePath", "/home/img/avatar/");
 
     private final String text;
-
     private final String value;
 
     ConfigEnum(String text, String value) {
@@ -30,11 +32,17 @@ public enum ConfigEnum {
         this.value = value;
     }
 
-
-    public static List<String> getValues() {
-          return Arrays.stream(ConfigEnum.values()).map(ConfigEnum::getValue).collect(Collectors.toList());
+    private static String environment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalStateException("Missing required environment variable: " + name);
+        }
+        return value;
     }
 
+    public static List<String> getValues() {
+        return Arrays.stream(ConfigEnum.values()).map(ConfigEnum::getValue).collect(Collectors.toList());
+    }
 
     public static ConfigEnum getEnumByValue(String value) {
         if (ObjectUtils.isEmpty(value)) {
@@ -44,18 +52,15 @@ public enum ConfigEnum {
             if (anEnum.getValue().equals(value)) {
                 return anEnum;
             }
-
         }
         return null;
     }
+
     public String getText() {
         return text;
     }
 
-
     public String getValue() {
         return value;
     }
-
-
 }

@@ -19,8 +19,12 @@ public class JwtHandler implements HandlerInterceptor {
         String authorization = request.getHeader("Authorization");
         if (StringUtils.isEmpty(authorization)){
             refuseResult(response);
+
             return false;
         }
+        // 验证 jwt 逻辑
+
+
         return true;
     }
 

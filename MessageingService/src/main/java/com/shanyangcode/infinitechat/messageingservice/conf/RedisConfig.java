@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -24,15 +25,25 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @SpringBootConfiguration
 public class RedisConfig {
 
+    @Value("${spring.redis.host:127.0.0.1}")
+    private String host;
+
+    @Value("${spring.redis.port:6379}")
+    private int port;
+
+    @Value("${spring.redis.password:}")
+    private String password;
+
     @Autowired
     @Lazy // 退出注入，避免循环依赖
     private RedPacketExpireListener redPacketExpireListener;
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        // 创建 Lettuce 连接工厂，连接到本地 Redis
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration("118.25.77.201", 59000);
-        config.setPassword(RedisPassword.of("e65K4t8w2"));
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+        if (password != null && !password.trim().isEmpty()) {
+            config.setPassword(RedisPassword.of(password));
+        }
         return new LettuceConnectionFactory(config);
     }
 
@@ -72,4 +83,3 @@ public class RedisConfig {
         return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
 }
-

@@ -4,22 +4,25 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.shanyangcode.infinitechat.authenticationservice.mapper.UserMapper">
 
+
     <resultMap id="BaseResultMap" type="com.shanyangcode.infinitechat.authenticationservice.model.User">
-            <id property="userId" column="user_id" />
-            <result property="userName" column="user_name" />
-            <result property="password" column="password" />
-            <result property="email" column="email" />
-            <result property="phone" column="phone" />
-            <result property="avatar" column="avatar" />
-            <result property="signature" column="signature" />
-            <result property="gender" column="gender" />
-            <result property="status" column="status" />
-            <result property="createdAt" column="created_at" />
-            <result property="updatedAt" column="updated_at" />
+            <id property="userId" column="user_id" jdbcType="BIGINT"/>
+            <result property="userName" column="user_name" jdbcType="VARCHAR"/>
+            <result property="password" column="password" jdbcType="VARCHAR"/>
+            <result property="email" column="email" jdbcType="VARCHAR"/>
+            <result property="phone" column="phone" jdbcType="VARCHAR"/>
+            <result property="avatar" column="avatar" jdbcType="VARCHAR"/>
+            <result property="signature" column="signature" jdbcType="VARCHAR"/>
+            <result property="gender" column="gender" jdbcType="TINYINT"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        user_id,user_name,password,email,phone,avatar,
-        signature,gender,status,created_at,updated_at
+        user_id,user_name,password,
+        email,phone,avatar,
+        signature,gender,status,
+        created_at,updated_at
     </sql>
 </mapper>

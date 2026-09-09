@@ -8,6 +8,8 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+
 @Service
 @Slf4j
 public class RedPacketExpireListener implements MessageListener {
@@ -16,7 +18,7 @@ public class RedPacketExpireListener implements MessageListener {
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
-        String expiredKey = message.toString();
+        String expiredKey = new String(message.getBody(), StandardCharsets.UTF_8);
 
         log.info("得到过期的key：" + expiredKey);
         if (expiredKey.startsWith(RedPacketConstants.RED_PACKET_KEY_PREFIX.getValue())){

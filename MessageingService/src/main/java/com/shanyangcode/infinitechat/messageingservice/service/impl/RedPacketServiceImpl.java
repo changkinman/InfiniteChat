@@ -3,13 +3,13 @@ package com.shanyangcode.infinitechat.messageingservice.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.shanyangcode.infinitechat.messageingservice.common.ServiceException;
 import com.shanyangcode.infinitechat.messageingservice.constants.BalanceLogType;
-import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketConstants;
 import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketStatus;
 import com.shanyangcode.infinitechat.messageingservice.data.senRedPackage.RedPacketMessageBody;
 import com.shanyangcode.infinitechat.messageingservice.data.senRedPackage.SendRedPacketRequest;
 import com.shanyangcode.infinitechat.messageingservice.data.senRedPackage.SendRedPacketResponse;
+import com.shanyangcode.infinitechat.messageingservice.common.ServiceException;
+import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketConstants;
 import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.SendMsgRequest;
 import com.shanyangcode.infinitechat.messageingservice.data.sendMsg.SendMsgResponse;
 import com.shanyangcode.infinitechat.messageingservice.mapper.BalanceLogMapper;
@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,11 @@ import java.time.LocalDateTime;
 @Slf4j
 @Service
 public class RedPacketServiceImpl extends ServiceImpl<RedPacketMapper, RedPacket> implements RedPacketService {
+    @Value("${red-packet.expire-seconds:86400}")
+    private long redPacketExpireSeconds;
+
+    @Value("${perf.skip-message-dispatch:false}")
+    private boolean skipMessageDispatch;
     private final UserBalanceMapper userBalanceMapper;
     private final BalanceLogMapper balanceLogMapper;
     private final MessageService messageService;
@@ -88,7 +94,16 @@ public class RedPacketServiceImpl extends ServiceImpl<RedPacketMapper, RedPacket
         createBalanceLog(senderId, totalAmount.negate(), BalanceLogType.SEND_RED_PACKET, redPacket.getRedPacketId());
 
         // 发送红包消息
-        SendRedPacketResponse response = sendRedPacketMessage(request, redPacket);
+        SendRedPacketResponse response;
+        if (skipMessageDispatch) {
+            response = new SendRedPacketResponse();
+            response.setSessionId(String.valueOf(request.getSessionId()));
+            response.setSessionType(request.getSessionType());
+            response.setType(request.getType());
+        } else {
+            response = sendRedPacketMessage(request, redPacket);
+        }
+        response.setRedPacketId(redPacket.getRedPacketId());
 
         // 设置红包剩余个数到Redis
         setRedPacketCountToRedis(redPacket.getRedPacketId(), totalCount);
@@ -290,7 +305,7 @@ public class RedPacketServiceImpl extends ServiceImpl<RedPacketMapper, RedPacket
      */
     private void setRedPacketCountToRedis(Long redPacketId, int totalCount) {
         String redisKey = RedPacketConstants.RED_PACKET_KEY_PREFIX.getValue() + redPacketId;
-        redisTemplate.opsForValue().set(redisKey, totalCount, Duration.ofHours(RedPacketConstants.RED_PACKET_EXPIRE_HOURS.getIntValue()));
+        redisTemplate.opsForValue().set(redisKey, totalCount, Duration.ofSeconds(redPacketExpireSeconds));
     }
 
     /**

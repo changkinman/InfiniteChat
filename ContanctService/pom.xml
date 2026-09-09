@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.shanyangcode.infinitechat</groupId>
+    <groupId>com.shangyangcode.infinitechat</groupId>
     <artifactId>ContanctService</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>ContanctService</name>
@@ -87,6 +87,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.github.yulichang</groupId>
+            <artifactId>mybatis-plus-join-boot-starter</artifactId>
+            <version>1.4.5</version>
+        </dependency>
+
+        <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt</artifactId>
             <version>0.9.1</version>
@@ -139,7 +145,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.shanyangcode.infinitechat.contactservice.ContanctServiceApplication</mainClass>
+                    <mainClass>com.shangyangcode.infinitechat.contactservice.ContanctServiceApplication</mainClass>
                     <skip>true</skip>
                 </configuration>
                 <executions>

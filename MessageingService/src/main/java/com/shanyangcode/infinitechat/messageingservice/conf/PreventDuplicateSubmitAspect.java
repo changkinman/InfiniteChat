@@ -1,5 +1,6 @@
 package com.shanyangcode.infinitechat.messageingservice.conf;
 
+import cn.hutool.log.Log;
 import com.shanyangcode.infinitechat.messageingservice.util.PreventDuplicateSubmit;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;

@@ -7,13 +7,6 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>GateWay</name>
     <description>GateWay</description>
-
-    <parent>
-        <groupId>com.shanyangcode.infinitechat</groupId>
-        <artifactId>InfiniteChat</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-    </parent>
-
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -24,7 +24,6 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -68,7 +67,6 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
-
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -102,7 +100,7 @@
                     <mainClass>
                         com.shanyangcode.infinitechat.realtimecommunicationservice.RealTimeCommunicationServiceApplication
                     </mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

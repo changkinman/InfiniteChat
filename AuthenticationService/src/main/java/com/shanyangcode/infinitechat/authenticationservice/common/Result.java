@@ -19,6 +19,12 @@ public class Result<T> {
         return r.setCode(HttpStatus.OK.value()).setData(data);
     }
 
+    public static <T> Result<T> ValidError(String msg){
+        Result<T> r = new Result<T>();
+
+        return r.setCode(HttpStatus.BAD_REQUEST.value()).setMsg(msg);
+    }
+
     public static <T> Result<T> DatabaseError(String msg){
         Result<T> r = new Result<>();
 

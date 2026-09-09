@@ -4,6 +4,10 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONUtil;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.constants.MessageRcvTypeEnum;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.constants.PushTypeEnum;
+import com.shanyangcode.infinitechat.realtimecommunicationservice.data.PushMoment.FriendApplicationNotification;
+import com.shanyangcode.infinitechat.realtimecommunicationservice.data.PushMoment.NewGroupSessionNotification;
+import com.shanyangcode.infinitechat.realtimecommunicationservice.data.PushMoment.NewSessionNotification;
+import com.shanyangcode.infinitechat.realtimecommunicationservice.data.PushMoment.PushMomentRequest;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.data.ReceiveMessage.ReceiveMessageRequest;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.excption.ServiceException;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.model.*;
@@ -86,5 +90,27 @@ public class NettyMessageService {
                 }
                 break;
         }
+    }
+
+    public void sendNoticeMoment(PushMomentRequest request) {
+        List<Long> userIds = request.getReceiveUserIds();
+        for (Long userId : userIds) {
+            if (ChannelManager.getChannelByUserId(userId.toString()) != null) {
+                request.setReceiveUserIds(null);
+                sendPush(PushTypeEnum.MOMENT_NOTIFICATION, request, userId.toString());
+            }
+        }
+    }
+
+    public void sendFriendApplicationNotification(FriendApplicationNotification notification, String userId) {
+        sendPush(PushTypeEnum.FRIEND_APPLICATION_NOTIFICATION, notification, userId);
+    }
+
+    public void sendNewSessionNotification(NewSessionNotification notification, String userId) {
+        sendPush(PushTypeEnum.NEW_SESSION_NOTIFICATION, notification, userId);
+    }
+
+    public void sendNewGroupSessionNotification(NewGroupSessionNotification notification, String userId) {
+        sendPush(PushTypeEnum.NEW_SESSION_NOTIFICATION, notification, userId);
     }
 }

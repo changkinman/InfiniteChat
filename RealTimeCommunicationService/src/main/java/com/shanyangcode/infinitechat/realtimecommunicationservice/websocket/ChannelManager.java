@@ -33,5 +33,20 @@ public class ChannelManager {
         return CHANNEL_USER_MAP.get(channel);
     }
 
+    /**
+     * Returns the number of authenticated users currently attached to this node.
+     * The performance endpoint only receives this value and cannot mutate state.
+     */
+    public static int activeUserCount() {
+        return USER_CHANNEL_MAP.size();
+    }
+
+    /**
+     * Returns the number of channels tracked by this node.
+     */
+    public static int activeChannelCount() {
+        return CHANNEL_USER_MAP.size();
+    }
+
 
 }

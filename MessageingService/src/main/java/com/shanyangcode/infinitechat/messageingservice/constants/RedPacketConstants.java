@@ -7,17 +7,23 @@ import java.math.BigDecimal;
  */
 public enum RedPacketConstants {
     RED_PACKET_KEY_PREFIX("red_packet:count:"),
+    RED_PACKET_CLAIMED_KEY_PREFIX("red_packet:claimed:"),
     RED_PACKET_LUA_SCRIPT(
-            "local count = redis.call('get', KEYS[1]) " +
-                    "if count == false then " +
-                    "    return tonumber(0) " + //明确返回数字
-                    "end " +
-                    "if tonumber(count) > 0 then " +
-                    "    redis.call('decr', KEYS[1]) " +
-                    "    return tonumber(1) " + //明确返回数字
-                    "else " +
-                    "    return tonumber(2) " + //明确返回数字
-                    "end"),
+            "if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then return 3 end " +
+                    "local count = redis.call('get', KEYS[1]) " +
+                    "if count == false then return 0 end " +
+                    "if tonumber(count) <= 0 then return 2 end " +
+                    "redis.call('decr', KEYS[1]) " +
+                    "redis.call('sadd', KEYS[2], ARGV[1]) " +
+                    "local ttl = redis.call('ttl', KEYS[1]) " +
+                    "if ttl > 0 then redis.call('expire', KEYS[2], ttl) end " +
+                    "return 1"),
+    RED_PACKET_RELEASE_LUA_SCRIPT(
+            "if redis.call('srem', KEYS[2], ARGV[1]) == 1 then " +
+                    "  local ttl = redis.call('ttl', KEYS[2]) " +
+                    "  if redis.call('exists', KEYS[1]) == 1 then redis.call('incr', KEYS[1]) " +
+                    "  else redis.call('set', KEYS[1], 1); if ttl > 0 then redis.call('expire', KEYS[1], ttl) end end " +
+                    "end return 1"),
     RED_PACKET_TYPE_NORMAL("1"),
     RED_PACKET_TYPE_RANDOM("2"),
     WORKED_ID("1"),

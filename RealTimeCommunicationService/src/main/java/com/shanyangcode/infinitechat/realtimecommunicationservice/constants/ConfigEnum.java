@@ -8,19 +8,21 @@ import java.util.stream.Collectors;
 
 public enum ConfigEnum {
 
-
-    TOKEN_SECRET_KEY("tokenSecretKey","goat"),
-    PASSWORD_SALT("passwordSalt","goat"),
-    WX_STATE("wxState","goat"),
-    WORKED_ID("workedId","1"),
-    DATACENTER_ID("DATACENTER_ID","1"),
-    IMAGE_URI("imageUri","http://127.0.0.1/img/avatar/"),
+    SMS_ACCESS_KEY_ID("smsAccessKeyId", environment("RTC_ALIYUN_SMS_ACCESS_KEY_ID")),
+    SMS_ACCESS_KEY_SECRET("smsAccessKeySecret", environment("RTC_ALIYUN_SMS_ACCESS_KEY_SECRET")),
+    SMS_SIG_NAME("smsSigName", "Zzw"),
+    SMS_TEMPLATE_CODE("smsTemplateCode", "SMS_468395208"),
+    TOKEN_SECRET_KEY("tokenSecretKey", environment("RTC_TOKEN_SECRET_KEY")),
+    PASSWORD_SALT("passwordSalt", environment("RTC_PASSWORD_SALT")),
+    WX_STATE("wxState", "goat"),
+    WORKED_ID("workedId", "1"),
+    DATACENTER_ID("DATACENTER_ID", "1"),
+    IMAGE_URI("imageUri", "http://47.113.96.105/img/avatar/"),
     IMAGE_PATH("imagePath", "/home/img/avatar/"),
-    NETTY_SERVER_HEAD("nettyServerHead","Nacos:"),
-    REDIS_CONVERT_SEND("redisConvertSend","userLogout");
+    NETTY_SERVER_HEAD("nettyServerHead", "Nacos:"),
+    REDIS_CONVERT_SEND("redisConvertSend", "userLogout");
 
     private final String text;
-
     private final String value;
 
     ConfigEnum(String text, String value) {
@@ -28,11 +30,17 @@ public enum ConfigEnum {
         this.value = value;
     }
 
-
-    public static List<String> getValues() {
-          return Arrays.stream(ConfigEnum.values()).map(ConfigEnum::getValue).collect(Collectors.toList());
+    private static String environment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalStateException("Missing required environment variable: " + name);
+        }
+        return value;
     }
 
+    public static List<String> getValues() {
+        return Arrays.stream(ConfigEnum.values()).map(ConfigEnum::getValue).collect(Collectors.toList());
+    }
 
     public static ConfigEnum getEnumByValue(String value) {
         if (ObjectUtils.isEmpty(value)) {
@@ -42,18 +50,15 @@ public enum ConfigEnum {
             if (anEnum.getValue().equals(value)) {
                 return anEnum;
             }
-
         }
         return null;
     }
+
     public String getText() {
         return text;
     }
 
-
     public String getValue() {
         return value;
     }
-
-
 }

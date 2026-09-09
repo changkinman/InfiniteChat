@@ -1,6 +1,15 @@
+# Local secrets and developer-specific configuration
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+**/application-secret.yml
+**/application-secret.yaml
+config/secrets/
+
+# Build and IDE output
 **/target/
-.idea
+**/.m2/
+.idea/
 *.iml
-*.class
-*Test.java
-**/test/

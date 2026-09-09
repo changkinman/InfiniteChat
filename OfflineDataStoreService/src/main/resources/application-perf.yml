@@ -1,0 +1,20 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${PERF_NACOS_ADDR:127.0.0.1:18848}
+      config:
+        enabled: false
+  datasource:
+    url: jdbc:mysql://${PERF_MYSQL_HOST:127.0.0.1}:${PERF_MYSQL_PORT:13306}/InfiniteChat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: root
+    password: perf_root_only
+    hikari:
+      maximum-pool-size: 12
+      minimum-idle: 2
+  kafka:
+    bootstrap-servers: ${PERF_KAFKA_SERVERS:127.0.0.1:19092}
+
+logging:
+  level:
+    org.apache.ibatis: WARN

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shanyangcode.infinitechat.momentservice.mapper.MomentMapper">
+
+    <resultMap id="BaseResultMap" type="com.shanyangcode.infinitechat.momentservice.model.Moment">
+            <id property="momentId" column="moment_id" jdbcType="BIGINT"/>
+            <result property="userId" column="user_id" jdbcType="BIGINT"/>
+            <result property="text" column="text" jdbcType="VARCHAR"/>
+            <result property="mediaUrl" column="media_url" jdbcType="VARCHAR"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="deleteTime" column="delete_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        moment_id,user_id,text,
+        media_url,create_time,update_time,
+        delete_time
+    </sql>
+</mapper>

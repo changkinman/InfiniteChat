@@ -1,18 +1,14 @@
 package com.shanyangcode.infinitechat.authenticationservice.controller;
 
 import com.shanyangcode.infinitechat.authenticationservice.common.Result;
-import com.shanyangcode.infinitechat.authenticationservice.data.common.mail.MailRequest;
-import com.shanyangcode.infinitechat.authenticationservice.data.common.mail.MailResponse;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.sms.SMSRequest;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.sms.SMSResponse;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.uploadUrl.UploadUrlRequest;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.uploadUrl.UploadUrlResponse;
 import com.shanyangcode.infinitechat.authenticationservice.service.CommonService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
@@ -28,12 +24,6 @@ public class CommonController {
     public Result<SMSResponse> sendSms(@Valid SMSRequest request) throws Exception {
         SMSResponse response = commonService.sendSms(request);
 
-        return Result.OK(response);
-    }
-
-    @GetMapping("/getCode")
-    public Result<MailResponse> mail(@Valid MailRequest mailRequest){
-        MailResponse response = commonService.sendMail(mailRequest);
         return Result.OK(response);
     }
 

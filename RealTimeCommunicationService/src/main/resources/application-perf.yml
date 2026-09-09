@@ -1,0 +1,28 @@
+spring:
+  cloud:
+    discovery:
+      enabled: false
+    nacos:
+      discovery:
+        enabled: false
+      server-addr: ${PERF_NACOS_ADDR:127.0.0.1:18848}
+      config:
+        enabled: false
+  redis:
+    host: ${PERF_REDIS_HOST:127.0.0.1}
+    port: ${PERF_REDIS_PORT:16379}
+    password:
+    lettuce:
+      pool:
+        min-idle: 2
+        max-idle: 8
+        max-active: 32
+        max-wait: 1000ms
+
+netty:
+  register-nacos: false
+
+logging:
+  level:
+    com.shanyangcode.infinitechat.realtimecommunicationservice.websocket.MessageInboundHandler: WARN
+    com.shanyangcode.infinitechat.realtimecommunicationservice.service.impl.NettyMessageService: WARN

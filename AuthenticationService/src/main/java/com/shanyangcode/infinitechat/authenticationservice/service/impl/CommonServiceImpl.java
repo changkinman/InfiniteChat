@@ -1,10 +1,7 @@
 package com.shanyangcode.infinitechat.authenticationservice.service.impl;
 
-import cn.hutool.extra.mail.Mail;
 import com.shanyangcode.infinitechat.authenticationservice.constants.config.OSSConstant;
 import com.shanyangcode.infinitechat.authenticationservice.constants.user.registerConstant;
-import com.shanyangcode.infinitechat.authenticationservice.data.common.mail.MailRequest;
-import com.shanyangcode.infinitechat.authenticationservice.data.common.mail.MailResponse;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.sms.SMSRequest;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.sms.SMSResponse;
 import com.shanyangcode.infinitechat.authenticationservice.data.common.uploadUrl.UploadUrlRequest;
@@ -12,7 +9,7 @@ import com.shanyangcode.infinitechat.authenticationservice.data.common.uploadUrl
 import com.shanyangcode.infinitechat.authenticationservice.service.CommonService;
 import com.shanyangcode.infinitechat.authenticationservice.utils.OSSUtils;
 import com.shanyangcode.infinitechat.authenticationservice.utils.RandomNumUtil;
-import com.shanyangcode.infinitechat.authenticationservice.utils.SendMailUtil;
+import com.shanyangcode.infinitechat.authenticationservice.utils.SMSUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -31,18 +28,13 @@ public class CommonServiceImpl implements CommonService {
 
     @Override
     public SMSResponse sendSms(SMSRequest request) throws Exception {
-        return null;
-    }
-
-    @Override
-    public MailResponse sendMail(MailRequest mailRequest) {
-        String mail = mailRequest.getMail();
+        String phone = request.getPhone();
         String code = RandomNumUtil.getRandomNum();
 
-        redisTemplate.opsForValue().set(registerConstant.REGISTER_CODE + mail, code, 5, TimeUnit.MINUTES);
-        SendMailUtil.sendEmailCode(mail, code);
+        redisTemplate.opsForValue().set(registerConstant.REGISTER_CODE + phone, code, 5, TimeUnit.MINUTES);
+        new SMSUtil().sendServiceSms(phone, code);
 
-        return new MailResponse().setMail(mail);
+        return new SMSResponse().setPhone(phone);
     }
 
     @Override
