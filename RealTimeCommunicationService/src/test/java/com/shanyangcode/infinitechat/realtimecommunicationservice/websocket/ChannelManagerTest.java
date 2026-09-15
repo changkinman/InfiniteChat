@@ -20,6 +20,9 @@ class ChannelManagerTest {
     @Mock
     private Channel currentChannel;
 
+    @Mock
+    private Channel oldSecondChannel;
+
     private ChannelManager channelManager;
 
     @BeforeEach
@@ -71,6 +74,24 @@ class ChannelManagerTest {
         verify(oldChannel).close();
         assertThat(channelManager.findByUserId("42")).contains(currentBinding);
         assertThat(channelManager.findByChannel(oldChannel)).isEmpty();
+        assertThat(channelManager.findByChannel(currentChannel)).contains(currentBinding);
+    }
+
+    @Test
+    void multipleChannelFirstLegacyRemovalsCannotDeleteCurrentUserMapping() {
+        ConnectionBinding oldBinding = new ConnectionBinding("42", "old", oldChannel);
+        ConnectionBinding oldSecondBinding = new ConnectionBinding("42", "old-second", oldSecondChannel);
+        ConnectionBinding currentBinding = new ConnectionBinding("42", "current", currentChannel);
+        channelManager.register(oldBinding);
+        channelManager.register(oldSecondBinding);
+        channelManager.register(currentBinding);
+
+        channelManager.removeChannelUser(oldChannel);
+        channelManager.removeChannelUser(oldSecondChannel);
+        channelManager.removeUserChannel("42");
+        channelManager.removeUserChannel("42");
+
+        assertThat(channelManager.findByUserId("42")).contains(currentBinding);
         assertThat(channelManager.findByChannel(currentChannel)).contains(currentBinding);
     }
 }

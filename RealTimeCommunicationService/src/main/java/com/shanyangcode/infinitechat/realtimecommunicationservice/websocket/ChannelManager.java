@@ -4,18 +4,20 @@ import io.netty.channel.Channel;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Component
 public final class ChannelManager {
     private final ConcurrentHashMap<String, ConnectionBinding> userBindings = new ConcurrentHashMap<String, ConnectionBinding>();
     private final ConcurrentHashMap<Channel, ConnectionBinding> channelBindings = new ConcurrentHashMap<Channel, ConnectionBinding>();
-    private final ConcurrentHashMap<String, ConnectionBinding> legacyChannelFirstRemovals = new ConcurrentHashMap<String, ConnectionBinding>();
+    private final ConcurrentHashMap<String, Queue<ConnectionBinding>> legacyChannelFirstRemovals = new ConcurrentHashMap<String, Queue<ConnectionBinding>>();
 
     public ConnectionBinding register(ConnectionBinding binding) {
         ConnectionBinding prior = userBindings.put(binding.getUserId(), binding);
         channelBindings.put(binding.getChannel(), binding);
-        legacyChannelFirstRemovals.remove(binding.getUserId(), binding);
+        removePendingLegacyChannelFirstRemoval(binding);
         return prior;
     }
 
@@ -30,14 +32,14 @@ public final class ChannelManager {
     public boolean remove(ConnectionBinding binding) {
         boolean userRemoved = userBindings.remove(binding.getUserId(), binding);
         channelBindings.remove(binding.getChannel(), binding);
-        legacyChannelFirstRemovals.remove(binding.getUserId(), binding);
+        removePendingLegacyChannelFirstRemoval(binding);
         return userRemoved;
     }
 
     public boolean close(ConnectionBinding binding) {
         userBindings.remove(binding.getUserId(), binding);
         boolean channelRemoved = channelBindings.remove(binding.getChannel(), binding);
-        legacyChannelFirstRemovals.remove(binding.getUserId(), binding);
+        removePendingLegacyChannelFirstRemoval(binding);
         if (channelRemoved) {
             binding.getChannel().close();
         }
@@ -53,7 +55,7 @@ public final class ChannelManager {
             return false;
         }
         channelBindings.remove(binding.getChannel(), binding);
-        legacyChannelFirstRemovals.remove(userId, binding);
+        removePendingLegacyChannelFirstRemoval(binding);
         binding.getChannel().close();
         return true;
     }
@@ -82,11 +84,11 @@ public final class ChannelManager {
             userBindings.putIfAbsent(userUuid, binding);
         }
         channelBindings.putIfAbsent(channel, binding);
-        legacyChannelFirstRemovals.remove(userUuid, binding);
+        removePendingLegacyChannelFirstRemoval(binding);
     }
 
     public void removeUserChannel(String userUuid) {
-        ConnectionBinding channelFirstRemoval = legacyChannelFirstRemovals.remove(userUuid);
+        ConnectionBinding channelFirstRemoval = pollPendingLegacyChannelFirstRemoval(userUuid);
         if (channelFirstRemoval != null) {
             userBindings.remove(userUuid, channelFirstRemoval);
             return;
@@ -101,12 +103,39 @@ public final class ChannelManager {
     public void removeChannelUser(Channel channel) {
         ConnectionBinding binding = channelBindings.remove(channel);
         if (binding != null) {
-            legacyChannelFirstRemovals.put(binding.getUserId(), binding);
+            legacyChannelFirstRemovals
+                    .computeIfAbsent(binding.getUserId(), key -> new ConcurrentLinkedQueue<ConnectionBinding>())
+                    .offer(binding);
         }
     }
 
     public String getUserByChannel(Channel channel) {
         ConnectionBinding binding = channelBindings.get(channel);
         return binding == null ? null : binding.getUserId();
+    }
+
+    private ConnectionBinding pollPendingLegacyChannelFirstRemoval(String userId) {
+        Queue<ConnectionBinding> removals = legacyChannelFirstRemovals.get(userId);
+        if (removals == null) {
+            return null;
+        }
+
+        ConnectionBinding binding = removals.poll();
+        if (removals.isEmpty()) {
+            legacyChannelFirstRemovals.remove(userId, removals);
+        }
+        return binding;
+    }
+
+    private void removePendingLegacyChannelFirstRemoval(ConnectionBinding binding) {
+        Queue<ConnectionBinding> removals = legacyChannelFirstRemovals.get(binding.getUserId());
+        if (removals == null) {
+            return;
+        }
+
+        removals.remove(binding);
+        if (removals.isEmpty()) {
+            legacyChannelFirstRemovals.remove(binding.getUserId(), removals);
+        }
     }
 }
