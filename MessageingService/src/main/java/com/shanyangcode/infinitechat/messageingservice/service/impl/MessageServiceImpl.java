@@ -132,14 +132,13 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                 json
         );
 
-        List<ServiceInstance> instances = discoveryClient.getInstances("RealTimeCommunicationService");
-        if (instances.isEmpty()) {
-            throw new ServiceException("没有可用的RealTimeCommunicationService服务实例");
-        }
-
         if (sendMsgRequest.getSessionType() == SessionType.SINGLE.getValue()) {
             sendSingleMessage(sendMsgRequest, requestBody);
         } else {
+            List<ServiceInstance> instances = discoveryClient.getInstances("RealTimeCommunicationService");
+            if (instances.isEmpty()) {
+                throw new ServiceException("没有可用的RealTimeCommunicationService服务实例");
+            }
             String nettyServerIP = redisTemplate.opsForValue().get(UserConstants.USER_SESSION + sendMsgRequest.getReceiveUserId().toString());
             sendGroupMessage(instances, requestBody, nettyServerIP);
         }
