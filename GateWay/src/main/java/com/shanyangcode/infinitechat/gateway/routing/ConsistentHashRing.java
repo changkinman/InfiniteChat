@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-public class ConsistentHashRing {
+public final class ConsistentHashRing {
 
     private final NavigableMap<BigInteger, ServiceInstance> ring;
     private final List<String> nodeIds;

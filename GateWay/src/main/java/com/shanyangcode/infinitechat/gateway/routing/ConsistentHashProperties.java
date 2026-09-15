@@ -7,7 +7,7 @@ import javax.annotation.PostConstruct;
 
 @Component
 @ConfigurationProperties(prefix = "infinitechat.routing.consistent-hash")
-public class ConsistentHashProperties {
+public final class ConsistentHashProperties {
 
     private int virtualNodes = 128;
 
