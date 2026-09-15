@@ -22,6 +22,15 @@ spring:
 netty:
   register-nacos: false
 
+infinitechat:
+  routing:
+    online-route:
+      ttl: ${PERF_RTC_ONLINE_ROUTE_TTL:10m}
+      advertised-http-endpoint: ${PERF_RTC_ADVERTISED_HTTP_ENDPOINT:http://127.0.0.1:8083}
+    takeover:
+      connect-timeout: ${PERF_RTC_TAKEOVER_CONNECT_TIMEOUT:1s}
+      read-timeout: ${PERF_RTC_TAKEOVER_READ_TIMEOUT:2s}
+
 logging:
   level:
     com.shanyangcode.infinitechat.realtimecommunicationservice.websocket.MessageInboundHandler: WARN

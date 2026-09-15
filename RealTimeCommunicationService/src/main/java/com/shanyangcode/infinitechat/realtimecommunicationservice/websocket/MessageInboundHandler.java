@@ -2,34 +2,33 @@ package com.shanyangcode.infinitechat.realtimecommunicationservice.websocket;
 
 import cn.hutool.json.JSONUtil;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.constants.MessageTypeEnum;
-import com.shanyangcode.infinitechat.realtimecommunicationservice.constants.UserConstants;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.excption.MessageTypeException;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.model.AckData;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.model.LogOutData;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.model.MessageDTO;
+import com.shanyangcode.infinitechat.realtimecommunicationservice.routing.ConnectionLifecycleService;
 import com.shanyangcode.infinitechat.realtimecommunicationservice.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.timeout.IdleStateEvent;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
-
-import java.net.InetAddress;
+import org.springframework.stereotype.Component;
 
 
 @Slf4j
 @Sharable
-@AllArgsConstructor
+@Component
 public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
-    private StringRedisTemplate redisTemplate;
-    private ChannelManager channelManager;
+    private final ConnectionLifecycleService lifecycle;
+
+    public MessageInboundHandler(ConnectionLifecycleService lifecycle) {
+        this.lifecycle = lifecycle;
+    }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
@@ -73,6 +72,9 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
 
     private void processHeartBeat(ChannelHandlerContext ctx, MessageDTO msg){
         log.info("收到心跳包");
+        if (!lifecycle.heartbeat(ctx.channel())) {
+            return;
+        }
         MessageDTO messageDTO = new MessageDTO();
         messageDTO.setType(MessageTypeEnum.HEART_BEAT.getCode());
         TextWebSocketFrame frame = new TextWebSocketFrame(JSONUtil.toJsonStr(messageDTO));
@@ -107,7 +109,7 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
 
             switch (event.state()){
                 case READER_IDLE:
-                    log.error("读空闲超时，关闭连接...{}, 用户ID{}",ctx.channel().remoteAddress(), channelManager.getUserByChannel(ctx.channel()));
+                    log.error("读空闲超时，关闭连接...{}",ctx.channel().remoteAddress());
                     offline(ctx);
                     break;
                 case WRITER_IDLE:
@@ -129,20 +131,9 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
                 return;
             }
 
-            // 将登录信息放入到 redis，用户与 netty 服务器的映射
-            redisTemplate.opsForValue().set(UserConstants.USER_SESSION + userUuid, InetAddress.getLocalHost().getHostAddress());
-
-            // 存储用户的管道信息
-            Channel channel = channelManager.getChannelByUserId(userUuid);
-            if (channel != null) {
-                channelManager.removeUserChannel(userUuid);
-                channelManager.removeChannelUser(channel);
-                channel.close();
+            if (!lifecycle.establish(userUuid, ctx.channel())) {
+                return;
             }
-
-            // 在将新的 channel 放入到其中
-            channelManager.addUserChannel(userUuid, ctx.channel());
-            channelManager.addChannelUser(userUuid, ctx.channel());
             log.info("客户连接成功， 用户ID：{}",userUuid + "管道地址： " + ctx.channel().remoteAddress());
         }
 
@@ -150,23 +141,10 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
 
     // 下线函数
     public void offline(ChannelHandlerContext ctx){
-        String userUuid = channelManager.getUserByChannel(ctx.channel());
-
         try{
-            channelManager.removeChannelUser(ctx.channel());
-            if (userUuid != null){
-                channelManager.removeUserChannel(userUuid);
-                log.info("客户端关闭连接UserId：{}, 客户端地址为：{}",userUuid, ctx.channel().remoteAddress());
-            }
+            lifecycle.disconnect(ctx.channel());
         }catch (Exception e){
             log.error("处理退出登录异常", e);
-        }finally {
-            // 关闭通道
-            if (ctx.channel() != null){
-                ctx.channel().close();
-            }
-            // 在redis中删除对应的key
-            redisTemplate.opsForValue().getAndDelete(UserConstants.USER_SESSION + userUuid);
         }
     }
 

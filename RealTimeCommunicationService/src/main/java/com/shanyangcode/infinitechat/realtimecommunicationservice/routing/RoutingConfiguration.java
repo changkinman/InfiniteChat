@@ -5,11 +5,24 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 
 @Configuration
 public class RoutingConfiguration {
+
+    @Bean
+    public LocalNode localNode(@Value("${netty.port}") int nettyPort,
+                               @Value("${server.port}") int serverPort,
+                               OnlineRouteProperties properties) throws UnknownHostException {
+        String host = InetAddress.getLocalHost().getHostAddress();
+        String endpoint = properties.getAdvertisedHttpEndpoint()
+                .orElse("http://" + host + ":" + serverPort);
+        return new LocalNode(host + ":" + nettyPort, endpoint);
+    }
 
     @Bean(name = "connectionTakeoverRestOperations")
     public RestOperations connectionTakeoverRestOperations(ConnectionTakeoverProperties properties) {
