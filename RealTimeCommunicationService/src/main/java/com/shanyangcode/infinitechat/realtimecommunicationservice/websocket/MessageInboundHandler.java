@@ -29,6 +29,7 @@ import java.net.InetAddress;
 public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     private StringRedisTemplate redisTemplate;
+    private ChannelManager channelManager;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
@@ -106,7 +107,7 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
 
             switch (event.state()){
                 case READER_IDLE:
-                    log.error("读空闲超时，关闭连接...{}, 用户ID{}",ctx.channel().remoteAddress(), ChannelManager.getUserByChannel(ctx.channel()));
+                    log.error("读空闲超时，关闭连接...{}, 用户ID{}",ctx.channel().remoteAddress(), channelManager.getUserByChannel(ctx.channel()));
                     offline(ctx);
                     break;
                 case WRITER_IDLE:
@@ -132,16 +133,16 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
             redisTemplate.opsForValue().set(UserConstants.USER_SESSION + userUuid, InetAddress.getLocalHost().getHostAddress());
 
             // 存储用户的管道信息
-            Channel channel = ChannelManager.getChannelByUserId(userUuid);
+            Channel channel = channelManager.getChannelByUserId(userUuid);
             if (channel != null) {
-                ChannelManager.removeUserChannel(userUuid);
-                ChannelManager.removeChannelUser(channel);
+                channelManager.removeUserChannel(userUuid);
+                channelManager.removeChannelUser(channel);
                 channel.close();
             }
 
             // 在将新的 channel 放入到其中
-            ChannelManager.addUserChannel(userUuid, ctx.channel());
-            ChannelManager.addChannelUser(userUuid, ctx.channel());
+            channelManager.addUserChannel(userUuid, ctx.channel());
+            channelManager.addChannelUser(userUuid, ctx.channel());
             log.info("客户连接成功， 用户ID：{}",userUuid + "管道地址： " + ctx.channel().remoteAddress());
         }
 
@@ -149,12 +150,12 @@ public class MessageInboundHandler extends SimpleChannelInboundHandler<TextWebSo
 
     // 下线函数
     public void offline(ChannelHandlerContext ctx){
-        String userUuid = ChannelManager.getUserByChannel(ctx.channel());
+        String userUuid = channelManager.getUserByChannel(ctx.channel());
 
         try{
-            ChannelManager.removeChannelUser(ctx.channel());
+            channelManager.removeChannelUser(ctx.channel());
             if (userUuid != null){
-                ChannelManager.removeUserChannel(userUuid);
+                channelManager.removeUserChannel(userUuid);
                 log.info("客户端关闭连接UserId：{}, 客户端地址为：{}",userUuid, ctx.channel().remoteAddress());
             }
         }catch (Exception e){

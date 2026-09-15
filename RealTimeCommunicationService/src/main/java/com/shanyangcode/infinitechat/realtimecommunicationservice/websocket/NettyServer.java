@@ -49,6 +49,9 @@ public class NettyServer {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    @Autowired
+    private ChannelManager channelManager;
+
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
 
     private EventLoopGroup workerGroup = new NioEventLoopGroup(NettyRuntime.availableProcessors());
@@ -84,7 +87,7 @@ public class NettyServer {
                         pipeline.addLast(new HttpObjectAggregator(8192));
                         pipeline.addLast(new WebSocketTokenAuthHeader());
                         pipeline.addLast(new WebSocketServerProtocolHandler("/api/v1/netty"));
-                        pipeline.addLast(new MessageInboundHandler(redisTemplate));
+                        pipeline.addLast(new MessageInboundHandler(redisTemplate, channelManager));
                     }
                 });
 

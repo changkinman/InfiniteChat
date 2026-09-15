@@ -16,6 +16,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,10 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class NettyMessageService {
+    private final ChannelManager channelManager;
+
     public void sendPush(PushTypeEnum pushType, Object data, String receiveUserUuid) {
         if (pushType == null || data == null || receiveUserUuid == null) {
             log.error("推送消息的类型、数据或接收用户UUID为空！");
@@ -35,7 +39,7 @@ public class NettyMessageService {
         messageDTO.setType(pushType.getCode());
         messageDTO.setData(data);
 
-        Channel channel = ChannelManager.getChannelByUserId(receiveUserUuid);
+        Channel channel = channelManager.getChannelByUserId(receiveUserUuid);
         if (channel != null && channel.isActive()) {
             log.info("准备发送消息，channel 状态: active={}, id={}, 发送内容: {}",
                     channel.isActive(),
@@ -69,8 +73,8 @@ public class NettyMessageService {
                 textMessage.setReceiveUserIds(null);
                 for (Long textReceiveUser : textReceiveUserIds) {
                     log.info("textReceiveUser:{}", textReceiveUser);
-                    log.info("是否存在管道: {}", ChannelManager.getChannelByUserId(textReceiveUser.toString()));
-                    if (ChannelManager.getChannelByUserId(textReceiveUser.toString()) != null) {
+                    log.info("是否存在管道: {}", channelManager.getChannelByUserId(textReceiveUser.toString()));
+                    if (channelManager.getChannelByUserId(textReceiveUser.toString()) != null) {
                         log.info("调用 sendPush: {}", textReceiveUser);
                         sendPush(PushTypeEnum.MESSAGE_NOTIFICATION, textMessage, textReceiveUser.toString());
                     }
@@ -84,7 +88,7 @@ public class NettyMessageService {
                 log.info("pictureMessage:{}", pictureMessage);
                 List<Long> pictureReceiveUserIds = pictureMessage.getReceiveUserIds();
                 for (Long pictureReceiveUser : pictureReceiveUserIds) {
-                    if (ChannelManager.getChannelByUserId(pictureReceiveUser.toString()) != null) {
+                    if (channelManager.getChannelByUserId(pictureReceiveUser.toString()) != null) {
                         sendPush(PushTypeEnum.MESSAGE_NOTIFICATION, pictureMessage, pictureReceiveUser.toString());
                     }
                 }
@@ -95,7 +99,7 @@ public class NettyMessageService {
     public void sendNoticeMoment(PushMomentRequest request) {
         List<Long> userIds = request.getReceiveUserIds();
         for (Long userId : userIds) {
-            if (ChannelManager.getChannelByUserId(userId.toString()) != null) {
+            if (channelManager.getChannelByUserId(userId.toString()) != null) {
                 request.setReceiveUserIds(null);
                 sendPush(PushTypeEnum.MOMENT_NOTIFICATION, request, userId.toString());
             }
