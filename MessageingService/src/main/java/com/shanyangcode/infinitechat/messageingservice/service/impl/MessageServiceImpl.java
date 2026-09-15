@@ -18,6 +18,7 @@ import com.shanyangcode.infinitechat.messageingservice.model.Friend;
 import com.shanyangcode.infinitechat.messageingservice.model.Message;
 import com.shanyangcode.infinitechat.messageingservice.model.Session;
 import com.shanyangcode.infinitechat.messageingservice.model.User;
+import com.shanyangcode.infinitechat.messageingservice.routing.OnlineRouteLookup;
 import com.shanyangcode.infinitechat.messageingservice.service.MessageService;
 import com.shanyangcode.infinitechat.messageingservice.service.SessionService;
 import com.shanyangcode.infinitechat.messageingservice.service.UserService;
@@ -36,6 +37,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -57,6 +59,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private final SessionService sessionService;
     private final DiscoveryClient discoveryClient;
     private final RedisTemplate<String, String> redisTemplate;
+    private final OnlineRouteLookup onlineRouteLookup;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OkHttpClient httpClient = new OkHttpClient();
 
@@ -68,6 +71,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                               UserSessionService userSessionService,
                               SessionService sessionService,
                               DiscoveryClient discoveryClient, RedisTemplate<String, String> redisTemplate,
+                              OnlineRouteLookup onlineRouteLookup,
                               KafkaTemplate<String, String> kafkaTemplate) {
         this.userService = userService;
         this.friendMapper = friendMapper;
@@ -75,6 +79,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         this.sessionService = sessionService;
         this.discoveryClient = discoveryClient;
         this.redisTemplate = redisTemplate;
+        this.onlineRouteLookup = onlineRouteLookup;
         this.kafkaTemplate = kafkaTemplate;
         this.groupMessageExecutor = new ThreadPoolExecutor(
                 CORE_POOL_SIZE,
@@ -122,7 +127,6 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     private void sendRealTimeMessage(SendMsgRequest sendMsgRequest, AppMessage appMessage, Date createdAt) {
         String json = JSON.toJSONString(appMessage);
-        String nettyServerIP = redisTemplate.opsForValue().get(UserConstants.USER_SESSION + sendMsgRequest.getReceiveUserId().toString());
         RequestBody requestBody = RequestBody.create(
                 MediaType.parse(ConfigEnum.MEDIA_TYPE.getValue()),
                 json
@@ -134,18 +138,20 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         }
 
         if (sendMsgRequest.getSessionType() == SessionType.SINGLE.getValue()) {
-            sendSingleMessage(sendMsgRequest, requestBody, nettyServerIP);
+            sendSingleMessage(sendMsgRequest, requestBody);
         } else {
+            String nettyServerIP = redisTemplate.opsForValue().get(UserConstants.USER_SESSION + sendMsgRequest.getReceiveUserId().toString());
             sendGroupMessage(instances, requestBody, nettyServerIP);
         }
     }
 
-    private void sendSingleMessage(SendMsgRequest sendMsgRequest, RequestBody requestBody, String nettyServerIP) {
+    private void sendSingleMessage(SendMsgRequest sendMsgRequest, RequestBody requestBody) {
         String receiveUserId = String.valueOf(sendMsgRequest.getReceiveUserId());
         try {
-            if (nettyServerIP != null) {
+            Optional<String> url = onlineRouteLookup.resolveUrl(sendMsgRequest.getReceiveUserId(), ConfigEnum.MSG_URL.getValue());
+            if (url.isPresent()) {
                 Request request = new Request.Builder()
-                        .url("http://" + nettyServerIP + ":8083" + ConfigEnum.MSG_URL.getValue())
+                        .url(url.get())
                         .post(requestBody)
                         .build();
                 executeHttpRequest(request);
