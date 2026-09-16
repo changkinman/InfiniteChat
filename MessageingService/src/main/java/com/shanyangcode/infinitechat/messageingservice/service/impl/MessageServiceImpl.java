@@ -25,8 +25,10 @@ import com.shanyangcode.infinitechat.messageingservice.service.UserService;
 import com.shanyangcode.infinitechat.messageingservice.service.UserSessionService;
 import okhttp3.*;
 import org.springframework.data.redis.core.RedisTemplate;
+import javax.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -40,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -64,8 +67,10 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     private final OkHttpClient httpClient = new OkHttpClient();
 
     private final ThreadPoolExecutor groupMessageExecutor;
+    private final ThreadPoolExecutor kafkaAckRealtimeExecutor;
 
 
+    @Autowired
     public MessageServiceImpl(UserService userService,
                               FriendMapper friendMapper,
                               UserSessionService userSessionService,
@@ -73,6 +78,26 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                               DiscoveryClient discoveryClient, RedisTemplate<String, String> redisTemplate,
                               OnlineRouteLookup onlineRouteLookup,
                               KafkaTemplate<String, String> kafkaTemplate) {
+        this(userService, friendMapper, userSessionService, sessionService, discoveryClient, redisTemplate,
+                onlineRouteLookup, kafkaTemplate, new ThreadPoolExecutor(
+                        CORE_POOL_SIZE,
+                        MAX_POOL_SIZE,
+                        KEEP_ALIVE_TIME,
+                        TimeUnit.SECONDS,
+                        new LinkedBlockingQueue<>(QUEUE_CAPACITY),
+                        new ThreadPoolExecutor.AbortPolicy()
+                ));
+    }
+
+    MessageServiceImpl(UserService userService,
+                       FriendMapper friendMapper,
+                       UserSessionService userSessionService,
+                       SessionService sessionService,
+                       DiscoveryClient discoveryClient,
+                       RedisTemplate<String, String> redisTemplate,
+                       OnlineRouteLookup onlineRouteLookup,
+                       KafkaTemplate<String, String> kafkaTemplate,
+                       ThreadPoolExecutor kafkaAckRealtimeExecutor) {
         this.userService = userService;
         this.friendMapper = friendMapper;
         this.userSessionService = userSessionService;
@@ -89,6 +114,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                 new LinkedBlockingQueue<>(QUEUE_CAPACITY),
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );;
+        this.kafkaAckRealtimeExecutor = kafkaAckRealtimeExecutor;
     }
 
     @Override
@@ -104,15 +130,13 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         Date createdAt = new Date();
         appMessage.setMessageId(messageId);
         appMessage.setCreatedAt(formatDate(createdAt));
-        sendKafkaMessage(request, request.getSendUserId(), messageId, createdAt);
-
-        // 4.通过redis查询接收者的netty服务在哪
-        sendRealTimeMessage(request, appMessage, createdAt);
+        sendKafkaMessage(request, request.getSendUserId(), messageId, appMessage, createdAt);
 
         return buildResponseMsgVo(appMessage);
     }
 
-    private void sendKafkaMessage(SendMsgRequest sendMsgRequest, Long sendUserId, Long messageId, Date createdAt) {
+    private void sendKafkaMessage(SendMsgRequest sendMsgRequest, Long sendUserId, Long messageId,
+                                  AppMessage appMessage, Date createdAt) {
         KafkaMsgVO kafkaMsgVO = new KafkaMsgVO();
         BeanUtils.copyProperties(sendMsgRequest, kafkaMsgVO);
         kafkaMsgVO.setMessageId(messageId);
@@ -121,8 +145,31 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         String kafkaJSON = JSON.toJSONString(kafkaMsgVO);
 
         kafkaTemplate.send(ConfigEnum.KAFKA_TOPICS.getValue(), sendMsgRequest.getSessionId().toString(), kafkaJSON)
-                .addCallback(result -> log.info("Kafka消息发送成功: {}", result.getRecordMetadata()),
+                .addCallback(result -> {
+                            log.info("Kafka消息发送成功: {}", result.getRecordMetadata());
+                            submitRealtimeMessage(sendMsgRequest, appMessage, createdAt);
+                        },
                         ex -> log.error("Kafka消息发送失败: {}", ex.getMessage()));
+    }
+
+    private void submitRealtimeMessage(SendMsgRequest sendMsgRequest, AppMessage appMessage, Date createdAt) {
+        try {
+            kafkaAckRealtimeExecutor.execute(() -> {
+                try {
+                    sendRealTimeMessage(sendMsgRequest, appMessage, createdAt);
+                } catch (Exception ex) {
+                    log.error("Kafka消息已投递，但实时消息发送失败", ex);
+                }
+            });
+        } catch (RejectedExecutionException ex) {
+            log.error("Kafka消息已投递，但实时消息任务队列已满", ex);
+        }
+    }
+
+    @PreDestroy
+    public void shutdownExecutors() {
+        groupMessageExecutor.shutdown();
+        kafkaAckRealtimeExecutor.shutdown();
     }
 
     private void sendRealTimeMessage(SendMsgRequest sendMsgRequest, AppMessage appMessage, Date createdAt) {
