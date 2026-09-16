@@ -99,7 +99,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
         }
 
         RedPacketReservation reservation = reservationResult.getReservation();
-        registerReservationSynchronization(reservation);
+        ReservationSynchronization reservationSynchronization = registerReservationSynchronization(reservation);
 
         // 领取金额和红包余额必须基于同一条加锁记录计算，避免并发读写覆盖。
         RedPacket redPacket = getBaseMapper().selectByIdForUpdate(redPacketId);
@@ -109,6 +109,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
 
         Integer status = validateRedPacketStatus(redPacket);
         if (status != 0) {
+            reservationSynchronization.suppressConfirmation();
             releaseReservationBestEffort(reservation);
             return new ReceiveRedPacketResponse(null, status);
         }
@@ -121,20 +122,37 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
         return new ReceiveRedPacketResponse(receivedAmount, status);
     }
 
-    private void registerReservationSynchronization(final RedPacketReservation reservation) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
+    private ReservationSynchronization registerReservationSynchronization(RedPacketReservation reservation) {
+        ReservationSynchronization synchronization = new ReservationSynchronization(reservation);
+        TransactionSynchronizationManager.registerSynchronization(synchronization);
+        return synchronization;
+    }
+
+    private final class ReservationSynchronization implements TransactionSynchronization {
+        private final RedPacketReservation reservation;
+        private boolean confirmationSuppressed;
+
+        private ReservationSynchronization(RedPacketReservation reservation) {
+            this.reservation = reservation;
+        }
+
+        private void suppressConfirmation() {
+            confirmationSuppressed = true;
+        }
+
+        @Override
+        public void afterCommit() {
+            if (!confirmationSuppressed) {
                 confirmReservationBestEffort(reservation);
             }
+        }
 
-            @Override
-            public void afterCompletion(int status) {
-                if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
-                    releaseReservationBestEffort(reservation);
-                }
+        @Override
+        public void afterCompletion(int status) {
+            if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                releaseReservationBestEffort(reservation);
             }
-        });
+        }
     }
 
     private void confirmReservationBestEffort(RedPacketReservation reservation) {
@@ -276,7 +294,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
 
         if (redPacket.getRemainingCount() == 0) {
             redPacket.setStatus(RedPacketStatus.CLAIMED.getStatus());
-            redisTemplate.delete("red_packet:count:" + redPacket.getRedPacketId());
+            // Keep the zero-valued inventory key until its existing TTL expires so a rollback can restore it.
         }
 
         boolean updateSuccess = this.updateById(redPacket);

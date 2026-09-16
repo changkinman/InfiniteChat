@@ -100,7 +100,51 @@ class RedPacketReceiveServiceTest {
         verifyNoInteractions(fixture.registry, fixture.redPacketMapper);
     }
 
+    @Test
+    void expiredPacketImmediateReleaseSuppressesConfirmationAfterCommit() {
+        Fixture fixture = reservedFixture(RedPacketStatus.EXPIRED.getStatus(), 2);
+        TransactionSynchronizationManager.initSynchronization();
+
+        ReceiveRedPacketResponse response = fixture.service.receiveRedPacket(USER_ID, RED_PACKET_ID);
+        invokeAfterCommit();
+
+        assertEquals(RedPacketStatus.EXPIRED.getStatus(), response.getStatus());
+        verify(fixture.registry).release(same(fixture.reservation));
+        verify(fixture.registry, never()).confirm(any(RedPacketReservation.class));
+    }
+
+    @Test
+    void exhaustedPacketReleaseFailureStillSuppressesConfirmationAfterCommit() {
+        Fixture fixture = reservedFixture(RedPacketStatus.UNCLAIMED.getStatus(), 0);
+        when(fixture.registry.release(same(fixture.reservation)))
+                .thenThrow(new RuntimeException("Redis unavailable"));
+        TransactionSynchronizationManager.initSynchronization();
+
+        ReceiveRedPacketResponse response = fixture.service.receiveRedPacket(USER_ID, RED_PACKET_ID);
+        invokeAfterCommit();
+
+        assertEquals(RedPacketStatus.CLAIMED.getStatus(), response.getStatus());
+        verify(fixture.registry).release(same(fixture.reservation));
+        verify(fixture.registry, never()).confirm(any(RedPacketReservation.class));
+    }
+
+    @Test
+    void finalUnitRollbackReleasesReservationWithoutDeletingInventoryKey() {
+        Fixture fixture = reservedFixture(RedPacketStatus.UNCLAIMED.getStatus(), 1);
+        TransactionSynchronizationManager.initSynchronization();
+
+        fixture.service.receiveRedPacket(USER_ID, RED_PACKET_ID);
+        invokeAfterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+
+        verify(fixture.registry).release(same(fixture.reservation));
+        verify(fixture.redisTemplate, never()).delete("red_packet:count:" + RED_PACKET_ID);
+    }
+
     private static Fixture successfulFixture() {
+        return reservedFixture(RedPacketStatus.UNCLAIMED.getStatus(), 2);
+    }
+
+    private static Fixture reservedFixture(Integer status, int remainingCount) {
         Fixture fixture = new Fixture();
         fixture.reservation = new RedPacketReservation(RED_PACKET_ID, USER_ID, "token-1", 1_000L);
         when(fixture.receiveMapper.selectByPacketIdAndReceiverId(RED_PACKET_ID, USER_ID)).thenReturn(null);
@@ -112,8 +156,8 @@ class RedPacketReceiveServiceTest {
                 .setTotalAmount(new BigDecimal("10.00"))
                 .setTotalCount(2)
                 .setRemainingAmount(new BigDecimal("10.00"))
-                .setRemainingCount(2)
-                .setStatus(RedPacketStatus.UNCLAIMED.getStatus()));
+                .setRemainingCount(remainingCount)
+                .setStatus(status));
         when(fixture.redPacketMapper.updateById(any(RedPacket.class))).thenReturn(1);
         when(fixture.receiveMapper.insert(any(RedPacketReceive.class))).thenReturn(1);
         when(fixture.userBalanceMapper.selectById(USER_ID))
