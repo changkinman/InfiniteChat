@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -46,8 +45,11 @@ public class NettyServer {
     @Autowired(required = false)
     private NacosServiceManager nacosServiceManager;
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+    private final MessageInboundHandler messageInboundHandler;
+
+    public NettyServer(MessageInboundHandler messageInboundHandler) {
+        this.messageInboundHandler = messageInboundHandler;
+    }
 
     private EventLoopGroup bossGroup = new NioEventLoopGroup(1);
 
@@ -84,7 +86,7 @@ public class NettyServer {
                         pipeline.addLast(new HttpObjectAggregator(8192));
                         pipeline.addLast(new WebSocketTokenAuthHeader());
                         pipeline.addLast(new WebSocketServerProtocolHandler("/api/v1/netty"));
-                        pipeline.addLast(new MessageInboundHandler(redisTemplate));
+                        pipeline.addLast(messageInboundHandler);
                     }
                 });
 

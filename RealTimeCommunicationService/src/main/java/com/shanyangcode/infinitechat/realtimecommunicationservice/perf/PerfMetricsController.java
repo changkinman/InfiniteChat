@@ -15,13 +15,18 @@ import java.util.Map;
 @Profile("perf")
 @RequestMapping("/internal/perf")
 public class PerfMetricsController {
+    private final ChannelManager channelManager;
+
+    public PerfMetricsController(ChannelManager channelManager) {
+        this.channelManager = channelManager;
+    }
 
     @GetMapping("/metrics")
     public Map<String, Object> metrics() {
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("timestamp", Instant.now().toString());
-        metrics.put("activeUsers", ChannelManager.activeUserCount());
-        metrics.put("activeChannels", ChannelManager.activeChannelCount());
+        metrics.put("activeUsers", channelManager.activeUserCount());
+        metrics.put("activeChannels", channelManager.activeChannelCount());
         return metrics;
     }
 }

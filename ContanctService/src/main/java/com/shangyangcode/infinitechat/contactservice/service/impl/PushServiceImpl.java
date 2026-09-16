@@ -6,23 +6,25 @@ import com.shangyangcode.infinitechat.contactservice.constants.UrlEnum;
 import com.shangyangcode.infinitechat.contactservice.data.AddFriend.FriendApplicationNotification;
 import com.shangyangcode.infinitechat.contactservice.data.dto.push.NewGroupSessionNotification;
 import com.shangyangcode.infinitechat.contactservice.data.dto.push.NewSessionNotification;
+import com.shangyangcode.infinitechat.contactservice.routing.OnlineRouteLookup;
 import com.shangyangcode.infinitechat.contactservice.service.PushService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Slf4j
 @Service
 public class PushServiceImpl implements PushService {
 
     private final OkHttpClient client;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final OnlineRouteLookup onlineRouteLookup;
 
     @Autowired
-    public PushServiceImpl(RedisTemplate<String, String> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public PushServiceImpl(OnlineRouteLookup onlineRouteLookup) {
+        this.onlineRouteLookup = onlineRouteLookup;
         this.client = new OkHttpClient();
     }
 
@@ -42,30 +44,28 @@ public class PushServiceImpl implements PushService {
      * @throws Exception
      */
     private void pushNotification(Long userId, Object notification, String urlEndpoint, String offlineLogMsg) throws Exception {
-        String nettyServerIP = redisTemplate.opsForValue().get("user:session:" + userId.toString());
+        Optional<String> url = onlineRouteLookup.resolveUrl(userId, urlEndpoint + userId);
 
-        if (nettyServerIP != null) {
-            String json = JSON.toJSONString(notification);
-            MediaType mediaType = MediaType.get(ConfigEnum.MEDIA_TYPE.getValue());
-            RequestBody requestBody = RequestBody.create(mediaType, json);
-            Request request = new Request.Builder()
-                    .url("http://" + nettyServerIP + ":8083" + urlEndpoint + userId)
-                    .post(requestBody)
-                    .build();
-
-            try (Response response = client.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    log.error("推送消息失败，用户ID: {}, 响应码: {}, 响应消息: {}", userId, response.code(), response.message());
-                    // 根据需求，可以选择是否抛出异常或执行其他逻辑
-                } else {
-                    log.info("成功推送消息给用户ID: {}", userId);
-                }
-            }
-        } else {
-            // 用户已下线，处理逻辑
+        if (!url.isPresent()) {
             log.info(offlineLogMsg);
-            // 根据需求，可以选择是否抛出异常或执行其他逻辑
-            // throw new ServiceException(offlineLogMsg);
+            return;
+        }
+
+        String json = JSON.toJSONString(notification);
+        MediaType mediaType = MediaType.get(ConfigEnum.MEDIA_TYPE.getValue());
+        RequestBody requestBody = RequestBody.create(mediaType, json);
+        Request request = new Request.Builder()
+                .url(url.get())
+                .post(requestBody)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                log.error("推送消息失败，用户ID: {}, 响应码: {}, 响应消息: {}", userId, response.code(), response.message());
+                // 根据需求，可以选择是否抛出异常或执行其他逻辑
+            } else {
+                log.info("成功推送消息给用户ID: {}", userId);
+            }
         }
     }
 

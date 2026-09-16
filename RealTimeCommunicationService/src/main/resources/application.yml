@@ -28,3 +28,11 @@ netty:
   name: NettyService
   port: 9000
 
+infinitechat:
+  routing:
+    online-route:
+      ttl: 10m
+      advertised-http-endpoint: ${RTC_ADVERTISED_HTTP_ENDPOINT:}
+    takeover:
+      connect-timeout: 1s
+      read-timeout: 2s
