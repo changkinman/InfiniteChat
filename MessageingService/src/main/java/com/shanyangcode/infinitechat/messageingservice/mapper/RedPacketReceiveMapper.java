@@ -13,6 +13,11 @@ import java.util.List;
  */
 @Mapper
 public interface RedPacketReceiveMapper extends BaseMapper<RedPacketReceive> {
+    @Select("SELECT * FROM red_packet_receive WHERE red_packet_id = #{redPacketId} " +
+            "AND receiver_id = #{receiverId}")
+    RedPacketReceive selectByPacketIdAndReceiverId(@Param("redPacketId") Long redPacketId,
+                                                   @Param("receiverId") Long receiverId);
+
     /**
      * 根据红包ID查询领取记录
      *
