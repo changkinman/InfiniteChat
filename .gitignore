@@ -11,5 +11,6 @@ config/secrets/
 # Build and IDE output
 **/target/
 **/.m2/
+.worktrees/
 .idea/
 *.iml
