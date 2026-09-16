@@ -43,15 +43,15 @@ public class RedPacketReservationRegistry {
                     + "return {1, ARGV[1], ARGV[2]}";
 
     private static final String CONFIRM_LUA =
-            "if redis.call('HGET', KEYS[1], 'state') ~= '1' then return 0 end\n"
-                    + "if redis.call('HGET', KEYS[1], 'token') ~= ARGV[1] then return 0 end\n"
+            "if redis.call('HGET', KEYS[1], 'state') ~= '1' then redis.call('ZREM', KEYS[2], ARGV[2]) return 0 end\n"
+                    + "if redis.call('HGET', KEYS[1], 'token') ~= ARGV[1] then redis.call('ZREM', KEYS[2], ARGV[2]) return 0 end\n"
                     + "redis.call('HSET', KEYS[1], 'state', '2')\n"
                     + "redis.call('ZREM', KEYS[2], ARGV[2])\n"
                     + "return 1";
 
     private static final String RELEASE_LUA =
-            "if redis.call('HGET', KEYS[2], 'state') ~= '1' then return 0 end\n"
-                    + "if redis.call('HGET', KEYS[2], 'token') ~= ARGV[1] then return 0 end\n"
+            "if redis.call('HGET', KEYS[2], 'state') ~= '1' then redis.call('ZREM', KEYS[3], ARGV[2]) return 0 end\n"
+                    + "if redis.call('HGET', KEYS[2], 'token') ~= ARGV[1] then redis.call('ZREM', KEYS[3], ARGV[2]) return 0 end\n"
                     + "if redis.call('EXISTS', KEYS[1]) == 1 then redis.call('INCR', KEYS[1]) end\n"
                     + "redis.call('HSET', KEYS[2], 'state', '3')\n"
                     + "redis.call('ZREM', KEYS[3], ARGV[2])\n"
@@ -125,6 +125,8 @@ public class RedPacketReservationRegistry {
             RedPacketReservation reservation = parsePendingMember(member);
             if (reservation != null) {
                 reservations.add(reservation);
+            } else {
+                redisTemplate.opsForZSet().remove(PENDING_KEY, member.getValue());
             }
         }
         return reservations;

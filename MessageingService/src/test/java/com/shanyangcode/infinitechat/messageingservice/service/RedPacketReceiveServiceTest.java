@@ -1,6 +1,7 @@
 package com.shanyangcode.infinitechat.messageingservice.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -28,6 +29,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionAttribute;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -41,6 +44,16 @@ class RedPacketReceiveServiceTest {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.clearSynchronization();
         }
+    }
+
+    @Test
+    void receiveTransactionTimeoutLeavesHeadroomBeforeReservationRecovery() throws NoSuchMethodException {
+        TransactionAttribute transaction = new AnnotationTransactionAttributeSource().getTransactionAttribute(
+                RedPacketReceiveService.class.getMethod("receiveRedPacket", Long.class, Long.class),
+                RedPacketReceiveService.class);
+
+        assertNotNull(transaction);
+        assertEquals(30, transaction.getTimeout());
     }
 
     @Test

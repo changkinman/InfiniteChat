@@ -81,7 +81,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
      * @return ReceiveRedPacketResponse 红包领取响应
      * @throws ServiceException 业务异常
      */
-    @Transactional
+    @Transactional(timeout = 30)
     public ReceiveRedPacketResponse receiveRedPacket(Long userId, Long redPacketId) throws ServiceException {
 
         // 检查用户是否已领取过红包，如果已领取则返回红包详情页
