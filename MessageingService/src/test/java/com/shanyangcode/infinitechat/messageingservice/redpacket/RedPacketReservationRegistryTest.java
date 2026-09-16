@@ -39,7 +39,7 @@ class RedPacketReservationRegistryTest {
         assertEquals(ReservationResult.Status.PENDING, result.getStatus());
         ArgumentCaptor<List> keys = ArgumentCaptor.forClass(List.class);
         org.mockito.Mockito.verify(redis).execute(any(DefaultRedisScript.class), keys.capture(), any(), any(), any());
-        assertEquals(Arrays.asList("red_packet:count:{71}", "red_packet:reservation:{71}:42", "red_packet:pending"), keys.getValue());
+        assertEquals(Arrays.asList("red_packet:count:71", "red_packet:reservation:{71}:42", "red_packet:pending"), keys.getValue());
         verifyNoMoreInteractions(redis);
     }
 
@@ -52,6 +52,9 @@ class RedPacketReservationRegistryTest {
         RedPacketReservation reservation = new RedPacketReservation(71L, 42L, "token-1", 1_000L);
 
         assertTrue(registry.release(reservation));
+        org.mockito.Mockito.verify(redis).execute(any(DefaultRedisScript.class),
+                eq(Arrays.asList("red_packet:count:71", "red_packet:reservation:{71}:42", "red_packet:pending")),
+                eq("token-1"), eq("71:42:token-1"));
     }
 
     @Test
@@ -63,6 +66,9 @@ class RedPacketReservationRegistryTest {
         RedPacketReservation oldReservation = new RedPacketReservation(71L, 42L, "old-token", 1_000L);
 
         assertFalse(registry.confirm(oldReservation));
+        org.mockito.Mockito.verify(redis).execute(any(DefaultRedisScript.class),
+                eq(Arrays.asList("red_packet:reservation:{71}:42", "red_packet:pending")),
+                eq("old-token"), eq("71:42:old-token"));
     }
 
     @Test

@@ -172,7 +172,7 @@ public class RedPacketReservationRegistry {
     }
 
     private static String inventoryKey(long redPacketId) {
-        return INVENTORY_PREFIX + "{" + redPacketId + "}";
+        return INVENTORY_PREFIX + redPacketId;
     }
 
     private static String reservationKey(long redPacketId, long userId) {
