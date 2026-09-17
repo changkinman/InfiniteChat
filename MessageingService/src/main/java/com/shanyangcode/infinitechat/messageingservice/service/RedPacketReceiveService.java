@@ -2,7 +2,6 @@ package com.shanyangcode.infinitechat.messageingservice.service;
 
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.shanyangcode.infinitechat.messageingservice.constants.BalanceLogType;
 import com.shanyangcode.infinitechat.messageingservice.constants.RedPacketStatus;
@@ -17,16 +16,21 @@ import com.shanyangcode.infinitechat.messageingservice.model.BalanceLog;
 import com.shanyangcode.infinitechat.messageingservice.model.RedPacket;
 import com.shanyangcode.infinitechat.messageingservice.model.RedPacketReceive;
 import com.shanyangcode.infinitechat.messageingservice.model.UserBalance;
+import com.shanyangcode.infinitechat.messageingservice.redpacket.RedPacketReservation;
+import com.shanyangcode.infinitechat.messageingservice.redpacket.RedPacketReservationRegistry;
+import com.shanyangcode.infinitechat.messageingservice.redpacket.ReservationResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -35,21 +39,17 @@ import java.util.Objects;
 @Service
 public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPacket> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedPacketReceiveService.class);
+
     private final UserBalanceMapper userBalanceMapper;
     private final BalanceLogMapper balanceLogMapper;
     private final RedPacketReceiveMapper redPacketReceiveMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final GetRedPacketService getRedPacketService;
+    private final RedPacketReservationRegistry reservationRegistry;
 
     private final Snowflake snowflake;
 
-    // Redis Lua脚本用于原子性地检查并递减红包数量
-    private static final String RED_PACKET_LUA_SCRIPT = RedPacketConstants.RED_PACKET_LUA_SCRIPT.getValue();
-    private static final String RED_PACKET_RELEASE_LUA_SCRIPT = RedPacketConstants.RED_PACKET_RELEASE_LUA_SCRIPT.getValue();
-    private static final String RED_PACKET_KEY_PREFIX = RedPacketConstants.RED_PACKET_KEY_PREFIX.getValue();
-    private static final String RED_PACKET_CLAIMED_KEY_PREFIX = RedPacketConstants.RED_PACKET_CLAIMED_KEY_PREFIX.getValue();
-    private static final Integer RESERVED = 1;
-    private static final Integer ALREADY_RECEIVED = 3;
     private static final Integer CLAIMED = RedPacketStatus.CLAIMED.getStatus();
 
     /**
@@ -60,12 +60,14 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
                                    BalanceLogMapper balanceLogMapper,
                                    RedPacketReceiveMapper redPacketReceiveMapper,
                                    RedisTemplate<String, Object> redisTemplate,
-                                   GetRedPacketService getRedPacketService) {
+                                   GetRedPacketService getRedPacketService,
+                                   RedPacketReservationRegistry reservationRegistry) {
         this.userBalanceMapper = userBalanceMapper;
         this.balanceLogMapper = balanceLogMapper;
         this.redPacketReceiveMapper = redPacketReceiveMapper;
         this.redisTemplate = redisTemplate;
         this.getRedPacketService = getRedPacketService;
+        this.reservationRegistry = reservationRegistry;
         this.snowflake = IdUtil.getSnowflake(
                 Integer.parseInt(RedPacketConstants.WORKED_ID.getValue()),
                 Integer.parseInt(RedPacketConstants.DATACENTER_ID.getValue()));
@@ -79,7 +81,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
      * @return ReceiveRedPacketResponse 红包领取响应
      * @throws ServiceException 业务异常
      */
-    @Transactional
+    @Transactional(timeout = 30)
     public ReceiveRedPacketResponse receiveRedPacket(Long userId, Long redPacketId) throws ServiceException {
 
         // 检查用户是否已领取过红包，如果已领取则返回红包详情页
@@ -88,80 +90,88 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
             return new ReceiveRedPacketResponse(amount, 0);
         }
 
-        Integer result = reserveRedPacket(redPacketId, userId);
-        if (!RESERVED.equals(result)) {
-            if (ALREADY_RECEIVED.equals(result)) {
-                BigDecimal receivedAmount = verifyUserHasNotReceived(redPacketId, userId);
-                if (receivedAmount != null) {
-                    return new ReceiveRedPacketResponse(receivedAmount, 0);
-                }
-            }
+        ReservationResult reservationResult = reservationRegistry.reserve(redPacketId, userId);
+        if (reservationResult.getStatus() == ReservationResult.Status.PENDING) {
+            return new ReceiveRedPacketResponse(null, 4, "领取处理中，请稍后重试");
+        }
+        if (reservationResult.getStatus() != ReservationResult.Status.RESERVED) {
             return new ReceiveRedPacketResponse(null, CLAIMED);
         }
 
-        try {
-            // 领取金额和红包余额必须基于同一条加锁记录计算，避免并发读写覆盖。
-            RedPacket redPacket = getBaseMapper().selectByIdForUpdate(redPacketId);
-            if (redPacket == null) {
-                throw new ServiceException("红包不存在");
-            }
+        RedPacketReservation reservation = reservationResult.getReservation();
+        ReservationSynchronization reservationSynchronization = registerReservationSynchronization(reservation);
 
-            Integer status = validateRedPacketStatus(redPacket);
-            if (status != 0) {
-                releaseReservation(redPacketId, userId);
-                return new ReceiveRedPacketResponse(null, status);
-            }
+        // 领取金额和红包余额必须基于同一条加锁记录计算，避免并发读写覆盖。
+        RedPacket redPacket = getBaseMapper().selectByIdForUpdate(redPacketId);
+        if (redPacket == null) {
+            throw new ServiceException("红包不存在");
+        }
 
-            BigDecimal receivedAmount = computeReceivedAmount(redPacket);
-            updateRedPacketInfo(redPacket, receivedAmount);
-            logRedPacketReceive(redPacketId, userId, receivedAmount);
-            adjustUserBalance(userId, receivedAmount);
-            logBalanceChange(userId, receivedAmount, redPacketId);
-            return new ReceiveRedPacketResponse(receivedAmount, status);
-        } catch (RuntimeException exception) {
-            // Redis 预占成功而数据库事务未完成时归还预占，防止库存被无故消耗。
-            releaseReservation(redPacketId, userId);
-            throw exception;
+        Integer status = validateRedPacketStatus(redPacket);
+        if (status != 0) {
+            reservationSynchronization.suppressConfirmation();
+            releaseReservationBestEffort(reservation);
+            return new ReceiveRedPacketResponse(null, status);
+        }
+
+        BigDecimal receivedAmount = computeReceivedAmount(redPacket);
+        updateRedPacketInfo(redPacket, receivedAmount);
+        logRedPacketReceive(redPacketId, userId, receivedAmount);
+        adjustUserBalance(userId, receivedAmount);
+        logBalanceChange(userId, receivedAmount, redPacketId);
+        return new ReceiveRedPacketResponse(receivedAmount, status);
+    }
+
+    private ReservationSynchronization registerReservationSynchronization(RedPacketReservation reservation) {
+        ReservationSynchronization synchronization = new ReservationSynchronization(reservation);
+        TransactionSynchronizationManager.registerSynchronization(synchronization);
+        return synchronization;
+    }
+
+    private final class ReservationSynchronization implements TransactionSynchronization {
+        private final RedPacketReservation reservation;
+        private boolean confirmationSuppressed;
+
+        private ReservationSynchronization(RedPacketReservation reservation) {
+            this.reservation = reservation;
+        }
+
+        private void suppressConfirmation() {
+            confirmationSuppressed = true;
+        }
+
+        @Override
+        public void afterCommit() {
+            if (!confirmationSuppressed) {
+                confirmReservationBestEffort(reservation);
+            }
+        }
+
+        @Override
+        public void afterCompletion(int status) {
+            if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                releaseReservationBestEffort(reservation);
+            }
         }
     }
 
-    /**
-     * 尝试为用户抢红包，执行Redis Lua脚本。
-     *
-     * @param redPacketId 红包ID
-     * @return Long 抢红包结果
-     */
-    private Integer reserveRedPacket(Long redPacketId, Long userId) {
-        String redPacketCountKey = RED_PACKET_KEY_PREFIX + redPacketId;
-        String redPacketClaimedKey = RED_PACKET_CLAIMED_KEY_PREFIX + redPacketId;
-        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
-        redisScript.setScriptText(RED_PACKET_LUA_SCRIPT);
-        redisScript.setResultType(Long.class);
+    private void confirmReservationBestEffort(RedPacketReservation reservation) {
         try {
-            Long result = redisTemplate.execute(redisScript,
-                    java.util.Arrays.asList(redPacketCountKey, redPacketClaimedKey), String.valueOf(userId));
-            if (result == null) {
-                throw new IllegalStateException("Redis 脚本执行返回 null");
-            }
-            return result.intValue();
-        } catch (Exception e) {
-            throw new RuntimeException("执行 Redis Lua 脚本时出错", e);
-        }
-    }
-
-    private void releaseReservation(Long redPacketId, Long userId) {
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setScriptText(RED_PACKET_RELEASE_LUA_SCRIPT);
-        script.setResultType(Long.class);
-        try {
-            redisTemplate.execute(script,
-                    java.util.Arrays.asList(RED_PACKET_KEY_PREFIX + redPacketId,
-                            RED_PACKET_CLAIMED_KEY_PREFIX + redPacketId), String.valueOf(userId));
+            reservationRegistry.confirm(reservation);
         } catch (Exception exception) {
-            throw new RuntimeException("归还红包库存预占失败", exception);
+            LOGGER.warn("确认红包库存预占失败，redPacketId={}, userId={}",
+                    reservation.getRedPacketId(), reservation.getUserId(), exception);
         }
     }
 
+    private void releaseReservationBestEffort(RedPacketReservation reservation) {
+        try {
+            reservationRegistry.release(reservation);
+        } catch (Exception exception) {
+            LOGGER.warn("归还红包库存预占失败，redPacketId={}, userId={}",
+                    reservation.getRedPacketId(), reservation.getUserId(), exception);
+        }
+    }
 
     /**
      * 获取红包信息，通过ID查询红包。
@@ -202,9 +212,8 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
      * @return 用户已领取金额
      */
     private BigDecimal verifyUserHasNotReceived(Long redPacketId, Long userId) throws ServiceException {
-        QueryWrapper<RedPacketReceive> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("red_packet_id", redPacketId).eq("receiver_id", userId);
-        RedPacketReceive redPacketReceive = redPacketReceiveMapper.selectOne(queryWrapper);
+        RedPacketReceive redPacketReceive = redPacketReceiveMapper
+                .selectByPacketIdAndReceiverId(redPacketId, userId);
         if (redPacketReceive == null) {
             return null;
         }
@@ -285,7 +294,7 @@ public class RedPacketReceiveService extends ServiceImpl<RedPacketMapper, RedPac
 
         if (redPacket.getRemainingCount() == 0) {
             redPacket.setStatus(RedPacketStatus.CLAIMED.getStatus());
-            redisTemplate.delete("red_packet:count:" + redPacket.getRedPacketId());
+            // Keep the zero-valued inventory key until its existing TTL expires so a rollback can restore it.
         }
 
         boolean updateSuccess = this.updateById(redPacket);
